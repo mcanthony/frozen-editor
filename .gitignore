@@ -1,5 +1,5 @@
 node_modules/
-deps/
+deps/*/
 libs/
 *~
 *.log
