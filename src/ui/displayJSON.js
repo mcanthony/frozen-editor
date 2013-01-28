@@ -8,7 +8,7 @@ define([
 
     dom.byId('output').value = JSON.stringify({
       objs: json,
-      backImg: state.backImg.src
+      backImg: state.backImg ? state.backImg.src : null
     }, null, '  ');
 
   };
