@@ -4,6 +4,8 @@
     <meta charset="utf-8">
     <title>Frozen Development Boilerplate</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="modern.css" type="text/css" rel="stylesheet" />
+    <link href="modern-responsive.css" type="text/css" rel="stylesheet" />
     <link href="gameStyles.css" type="text/css" rel="stylesheet" />
     <script src="dojoConfig.js"></script>
     <script src="deps/Box2d.min.js"></script>
@@ -20,8 +22,101 @@
     </script>
   </head>
   <body>
-    <div id="gameArea">
-      <canvas id="canvas" width="700" height="440" ></canvas>
-    </div>
+    <canvas id="canvas" width="700" height="440" ></canvas>
+
+    <form id="toolForm" onsubmit="return false;">
+      <div class="grid">
+        <div class="row">
+          <div class="span8">
+            Drag and drop an image into the canvas to change its size.
+          </div>
+          <div class="span4">
+            <span id="xdisp"></span>,<span id="ydisp"></span>
+          </div>
+        </div>
+
+        <div class="row">
+
+          <div class="span2">
+            <label class="input-control radio">
+              <input type="radio" name="tool" value="rectangle" checked="checked">
+              <span class="helper">Rectangle</span>
+            </label>
+            <label class="input-control radio">
+              <input type="radio" name="tool" value="polygon">
+              <span class="helper">Polygon</span>
+            </label>
+            <label class="input-control radio">
+              <input type="radio" name="tool" value="circle">
+              <span class="helper">Circle</span>
+            </label>
+          </div>
+
+          <div class="span2">
+            <label class="input-control radio">
+              <input type="radio" name="toolType" value="static" checked="checked">
+              <span class="helper">Static</span>
+            </label>
+            <label class="input-control radio">
+              <input type="radio" name="toolType" value="dynamic">
+              <span class="helper">Dynamic</span>
+            </label>
+            <label class="input-control radio">
+              <input type="radio" name="toolType" value="zone">
+              <span class="helper">Zone</span>
+            </label>
+          </div>
+
+          <div class="span3">
+            <label class="input-control checkbox">
+              <input type="checkbox" checked="checked" id="runSimulation">
+              <span class="helper">Run Simulation</span>
+            </label>
+
+            <label class="input-control checkbox">
+              <input type="checkbox" checked="checked" id="showStatic">
+              <span class="helper">Show Static</span>
+            </label>
+          </div>
+
+          <div class="span2">
+            <div class="row">
+              Gravity
+            </div>
+            <div class="row">
+              <div class="span1">
+                <div class="input-control text span1">
+                  X: <input type="text" value="0" id="gravityX">
+                </div>
+              </div>
+              <div class="span1">
+                <div class="input-control text span1">
+                  Y: <input type="text" value="9.8" id="gravityY">
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <button id="setGravity">Set Gravity</button>
+            </div>
+          </div>
+
+          <div class="span2">
+            <button id="undoBtn" disabled="disabled">undo</button>
+
+            <button id="redoBtn" disabled="disabled">redo</button>
+          </div>
+
+        </div>
+
+        <div class="row">
+          <div class="input-control textarea span12">
+            <button id="load">Load JSON</button>
+            <textarea rows="10" id="output"></textarea>
+          </div>
+        </div>
+      </div>
+    </form>
+
+
   </body>
 </html>

@@ -20,6 +20,7 @@ var profile = (function(){
       { name: 'dojo', location: 'deps/dojo' },
       { name: 'dcl', location: 'deps/dcl', main: 'dcl' },
       { name: 'frozen', location: 'deps/frozen/src', main: 'GameCore' },
+      { name: 'lodash', location: 'deps/lodash', main: 'lodash' },
       { name: 'game', location: './src', main: 'game' }
     ],
 
