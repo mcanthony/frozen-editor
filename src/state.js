@@ -1,7 +1,8 @@
 define([
   './box',
-  './StateManager'
-], function(box, StateManager){
+  './StateManager',
+  'dojo/dom'
+], function(box, StateManager, dom){
 
   var state = new StateManager({
     entities: {},
@@ -14,7 +15,13 @@ define([
     showStatic: true,
     box: box,
     backImg: null,
-    game: null
+    game: null,
+    codeMirror: CodeMirror.fromTextArea(dom.byId('output'), {
+      theme: 'frozen',
+      matchBrackets: true,
+      lineWrapping: true,
+      mode: 'application/json'
+    })
   });
 
   return state;

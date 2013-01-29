@@ -2,12 +2,11 @@ define([
   '../state',
   '../createBodies',
   './toggleRedo',
+  'lodash',
   'dojo/on',
   'dojo/query',
   'dojo/domReady!'
-], function(state, createBodies, toggleRedo, on, query){
-
-  var jsonEditor = query('#output')[0];
+], function(state, createBodies, toggleRedo, _, on, query){
 
   on(document, '#toolForm:change', function(e){
     state.geometries = [];
@@ -25,8 +24,16 @@ define([
 
   on(document, '#load:click', function(e){
     try {
-      var jsobj = JSON.parse(jsonEditor.value);
+      var jsobj = JSON.parse(state.codeMirror.getValue());
       state.jsonObjs = jsobj.objs;
+      if(jsobj.backImg){
+        state.backImg = new Image();
+        state.backImg.src = jsobj.backImg;
+      }
+      state.game.height = jsobj.canvas.height;
+      state.game.canvas.height = jsobj.canvas.height;
+      state.game.width = jsobj.canvas.width;
+      state.game.canvas.width = jsobj.canvas.width;
 
       createBodies();
 
@@ -52,9 +59,7 @@ define([
     toggleRedo();
   });
 
-  on(document, '#setGravity:click', function(e){
-    createBodies();
-  });
+  on(document, '.gravity:change', _.debounce(createBodies, 500));
 
   on(document, '#runSimulation:change', function(e){
     state.runSimulation = e.target.checked;
@@ -66,7 +71,6 @@ define([
 
   on(document, 'selectstart', function(e){
     e.preventDefault();
-    return false;
   });
 
 });

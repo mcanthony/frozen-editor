@@ -3,13 +3,16 @@ define([
   'dojo/dom'
 ], function(state, dom){
 
-  // TODO: code mirror or ACE editor
   return function(json){
 
-    dom.byId('output').value = JSON.stringify({
+    state.codeMirror.setValue(JSON.stringify({
       objs: json,
+      canvas: {
+        height: state.game ? state.game.height : null,
+        width: state.game ? state.game.width : null
+      },
       backImg: state.backImg ? state.backImg.src : null
-    }, null, '  ');
+    }, null, '  '));
 
   };
 

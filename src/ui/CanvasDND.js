@@ -12,7 +12,7 @@ define([
         var files = e.dataTransfer.files;
 
         //only care about 1 image
-        if(files && files.length == 1 && files[0].type.match(/image.*/)){
+        if(files && files.length === 1 && files[0].type.match(/image.*/)){
           var file = files[0];
           var reader = new FileReader();
 
@@ -21,7 +21,7 @@ define([
           };
 
           reader.onload = function(evt) {
-            if (evt.target.readyState == FileReader.DONE) {
+            if (evt.target.readyState === FileReader.DONE) {
               console.log('base64 length',evt.target.result.length);
 
               var backImg = new Image();

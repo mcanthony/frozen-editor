@@ -76,7 +76,7 @@ define([
 
       var loadCallback = function(aFile){
         return function(evt) {
-          if (evt.target.readyState == FileReader.DONE) {
+          if (evt.target.readyState === FileReader.DONE) {
             console.log('base64 length',evt.target.result.length);
           }
         };
