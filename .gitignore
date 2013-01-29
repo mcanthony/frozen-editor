@@ -1,5 +1,7 @@
 node_modules/
-deps/*/
+deps/dojo/
+deps/dcl/
+deps/util/
 libs/
 *~
 *.log
