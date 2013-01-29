@@ -1975,8 +1975,9 @@ define([
 'game/state':function(){
 define([
   './box',
-  './StateManager'
-], function(box, StateManager){
+  './StateManager',
+  'dojo/dom'
+], function(box, StateManager, dom){
 
   var state = new StateManager({
     entities: {},
@@ -1989,7 +1990,13 @@ define([
     showStatic: true,
     box: box,
     backImg: null,
-    game: null
+    game: null,
+    codeMirror: CodeMirror.fromTextArea(dom.byId('output'), {
+      theme: 'frozen',
+      matchBrackets: true,
+      lineWrapping: true,
+      mode: 'application/json'
+    })
   });
 
   return state;
@@ -3908,21 +3915,22 @@ define([
     */
     getState: function() {
       var state = {};
-      for (var b = this.world.GetBodyList(); b; b = b.m_next) {
-        if (b.IsActive() && typeof b.GetUserData() !== 'undefined' && b.GetUserData() !== null) {
-          state[b.GetUserData()] = {
-            x: b.GetPosition().x,
-            y: b.GetPosition().y,
-            angle: b.GetAngle(),
+      for (var b = this.world.m_bodyList /*this.world.GetBodyList()*/; b; b = b.m_next) {
+        var userData = b.m_userData; // b.GetUserData();
+        if (b.IsActive() && typeof userData !== 'undefined' && userData !== null) {
+          state[userData] = {
+            x: b.m_xf.position.x, // b.GetPosition()
+            y: b.m_xf.position.y, // b.GetPosition()
+            angle: b.m_sweep.a, // b.GetAngle()
             center: {
-              x: b.GetWorldCenter().x,
-              y: b.GetWorldCenter().y
+              x: b.m_sweep.c.x, // b.GetWorldCenter()
+              y: b.m_sweep.c.y // b.GetWorldCenter()
             },
             linearVelocity: b.m_linearVelocity,
             angularVelocity: b.m_angularVelocity
           };
           if(this.resolveCollisions){
-            state[b.GetUserData()].collisions = this.collisions[b.GetUserData()] || null;
+            state[userData].collisions = this.collisions[userData] || null;
           }
         }
       }
@@ -4673,8 +4681,9 @@ define([
   './ui/displayJSON',
   './ui/toggleUndo',
   'lodash',
+  'dojo/dom-class',
   'frozen/box2d/Box'
-], function(state, Entities, getGravity, displayJSON, toggleUndo, _, Box){
+], function(state, Entities, getGravity, displayJSON, toggleUndo, _, domClass, Box){
 
   var SCALE = 30;
   var DYNAMIC_COLOR = 'rgba(0,255,0,0.4)';
@@ -4683,6 +4692,7 @@ define([
   var geomId = 0;
 
   return function(){
+    var errors = false;
     var gravity = getGravity();
 
     state.box = new Box({
@@ -4692,6 +4702,15 @@ define([
 
     state.entities = {};
 
+    var max = _.chain(state.jsonObjs).map(function(obj){
+      var id = parseInt(obj.id, 10);
+      return typeof id === 'undefined' || id === null || isNaN(id) ? -1 : id;
+    }).max().value();
+
+    if(max){
+      geomId = max + 1;
+    }
+
     _.forEach(state.jsonObjs, function(obj){
       if(!obj.staticBody && !obj.zone){
         obj.color = obj.color || DYNAMIC_COLOR;
@@ -4699,20 +4718,28 @@ define([
       if(obj.zone){
         obj.color = obj.color || ZONE_COLOR;
       }
-      if(!obj.geomId){
+      if(typeof obj.id === 'undefined' || obj.id === null){
         obj.id = geomId;
         geomId++;
       }
 
-      var ent = new Entities[obj.type](obj);
-      ent.scaleShape(1 / SCALE);
-
-      state.entities[obj.id] = ent;
-
-      if(!obj.zone){
-        state.box.addBody(ent);
+      if(!state.entities[obj.id]){
+        var ent = new Entities[obj.type](obj);
+        ent.scaleShape(1 / SCALE);
+        state.entities[obj.id] = ent;
+        if(!obj.zone){
+          state.box.addBody(ent);
+        }
+      } else {
+        errors = true;
       }
     });
+
+    if(errors){
+      domClass.remove('duplicate-ids', 'hide');
+    } else {
+      domClass.add('duplicate-ids', 'hide');
+    }
 
     displayJSON(state.jsonObjs);
     toggleUndo();
@@ -5366,13 +5393,16 @@ define([
   'dojo/dom'
 ], function(state, dom){
 
-  // TODO: code mirror or ACE editor
   return function(json){
 
-    dom.byId('output').value = JSON.stringify({
+    state.codeMirror.setValue(JSON.stringify({
       objs: json,
+      canvas: {
+        height: state.game ? state.game.height : null,
+        width: state.game ? state.game.width : null
+      },
       backImg: state.backImg ? state.backImg.src : null
-    }, null, '  ');
+    }, null, '  '));
 
   };
 
@@ -9681,6 +9711,681 @@ define([
 }(this));
 
 },
+'dojo/dom-class':function(){
+define("dojo/dom-class", ["./_base/lang", "./_base/array", "./dom"], function(lang, array, dom){
+	// module:
+	//		dojo/dom-class
+
+	var className = "className";
+
+	/* Part I of classList-based implementation is preserved here for posterity
+	var classList = "classList";
+	has.add("dom-classList", function(){
+		return classList in document.createElement("p");
+	});
+	*/
+
+	// =============================
+	// (CSS) Class Functions
+	// =============================
+
+	var cls, // exports object
+		spaces = /\s+/, a1 = [""];
+
+	function str2array(s){
+		if(typeof s == "string" || s instanceof String){
+			if(s && !spaces.test(s)){
+				a1[0] = s;
+				return a1;
+			}
+			var a = s.split(spaces);
+			if(a.length && !a[0]){
+				a.shift();
+			}
+			if(a.length && !a[a.length - 1]){
+				a.pop();
+			}
+			return a;
+		}
+		// assumed to be an array
+		if(!s){
+			return [];
+		}
+		return array.filter(s, function(x){ return x; });
+	}
+
+	/* Part II of classList-based implementation is preserved here for posterity
+	if(has("dom-classList")){
+		// new classList version
+		cls = {
+			contains: function containsClass(node, classStr){
+				var clslst = classStr && dom.byId(node)[classList];
+				return clslst && clslst.contains(classStr); // Boolean
+			},
+
+			add: function addClass(node, classStr){
+				node = dom.byId(node);
+				classStr = str2array(classStr);
+				for(var i = 0, len = classStr.length; i < len; ++i){
+					node[classList].add(classStr[i]);
+				}
+			},
+
+			remove: function removeClass(node, classStr){
+				node = dom.byId(node);
+				if(classStr === undefined){
+					node[className] = "";
+				}else{
+					classStr = str2array(classStr);
+					for(var i = 0, len = classStr.length; i < len; ++i){
+						node[classList].remove(classStr[i]);
+					}
+				}
+			},
+
+			replace: function replaceClass(node, addClassStr, removeClassStr){
+				node = dom.byId(node);
+				if(removeClassStr === undefined){
+					node[className] = "";
+				}else{
+					removeClassStr = str2array(removeClassStr);
+					for(var i = 0, len = removeClassStr.length; i < len; ++i){
+						node[classList].remove(removeClassStr[i]);
+					}
+				}
+				addClassStr = str2array(addClassStr);
+				for(i = 0, len = addClassStr.length; i < len; ++i){
+					node[classList].add(addClassStr[i]);
+				}
+			},
+
+			toggle: function toggleClass(node, classStr, condition){
+				node = dom.byId(node);
+				if(condition === undefined){
+					classStr = str2array(classStr);
+					for(var i = 0, len = classStr.length; i < len; ++i){
+						node[classList].toggle(classStr[i]);
+					}
+				}else{
+					cls[condition ? "add" : "remove"](node, classStr);
+				}
+				return condition;   // Boolean
+			}
+		}
+	}
+	*/
+
+	// regular DOM version
+	var fakeNode = {};  // for effective replacement
+	cls = {
+		// summary:
+		//		This module defines the core dojo DOM class API.
+
+		contains: function containsClass(/*DomNode|String*/ node, /*String*/ classStr){
+			// summary:
+			//		Returns whether or not the specified classes are a portion of the
+			//		class list currently applied to the node.
+			// node: String|DOMNode
+			//		String ID or DomNode reference to check the class for.
+			// classStr: String
+			//		A string class name to look for.
+			// example:
+			//		Do something if a node with id="someNode" has class="aSillyClassName" present
+			//	|	if(dojo.hasClass("someNode","aSillyClassName")){ ... }
+
+			return ((" " + dom.byId(node)[className] + " ").indexOf(" " + classStr + " ") >= 0); // Boolean
+		},
+
+		add: function addClass(/*DomNode|String*/ node, /*String|Array*/ classStr){
+			// summary:
+			//		Adds the specified classes to the end of the class list on the
+			//		passed node. Will not re-apply duplicate classes.
+			//
+			// node: String|DOMNode
+			//		String ID or DomNode reference to add a class string too
+			//
+			// classStr: String|Array
+			//		A String class name to add, or several space-separated class names,
+			//		or an array of class names.
+			//
+			// example:
+			//		Add a class to some node:
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.add("someNode", "anewClass");
+			//	|	});
+			//
+			// example:
+			//		Add two classes at once:
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.add("someNode", "firstClass secondClass");
+			//	|	});
+			//
+			// example:
+			//		Add two classes at once (using array):
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.add("someNode", ["firstClass", "secondClass"]);
+			//	|	});
+			//
+			// example:
+			//		Available in `dojo/NodeList` for multiple additions
+			//	|	require(["dojo/query"], function(query){
+			//	|		query("ul > li").addClass("firstLevel");
+			//	|	});
+
+			node = dom.byId(node);
+			classStr = str2array(classStr);
+			var cls = node[className], oldLen;
+			cls = cls ? " " + cls + " " : " ";
+			oldLen = cls.length;
+			for(var i = 0, len = classStr.length, c; i < len; ++i){
+				c = classStr[i];
+				if(c && cls.indexOf(" " + c + " ") < 0){
+					cls += c + " ";
+				}
+			}
+			if(oldLen < cls.length){
+				node[className] = cls.substr(1, cls.length - 2);
+			}
+		},
+
+		remove: function removeClass(/*DomNode|String*/ node, /*String|Array?*/ classStr){
+			// summary:
+			//		Removes the specified classes from node. No `contains()`
+			//		check is required.
+			//
+			// node: String|DOMNode
+			//		String ID or DomNode reference to remove the class from.
+			//
+			// classStr: String|Array
+			//		An optional String class name to remove, or several space-separated
+			//		class names, or an array of class names. If omitted, all class names
+			//		will be deleted.
+			//
+			// example:
+			//		Remove a class from some node:
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.remove("someNode", "firstClass");
+			//	|	});
+			//
+			// example:
+			//		Remove two classes from some node:
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.remove("someNode", "firstClass secondClass");
+			//	|	});
+			//
+			// example:
+			//		Remove two classes from some node (using array):
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.remove("someNode", ["firstClass", "secondClass"]);
+			//	|	});
+			//
+			// example:
+			//		Remove all classes from some node:
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.remove("someNode");
+			//	|	});
+			//
+			// example:
+			//		Available in `dojo/NodeList` for multiple removal
+			//	|	require(["dojo/query"], function(query){
+			//	|		query("ul > li").removeClass("foo");
+			//	|	});
+
+			node = dom.byId(node);
+			var cls;
+			if(classStr !== undefined){
+				classStr = str2array(classStr);
+				cls = " " + node[className] + " ";
+				for(var i = 0, len = classStr.length; i < len; ++i){
+					cls = cls.replace(" " + classStr[i] + " ", " ");
+				}
+				cls = lang.trim(cls);
+			}else{
+				cls = "";
+			}
+			if(node[className] != cls){ node[className] = cls; }
+		},
+
+		replace: function replaceClass(/*DomNode|String*/ node, /*String|Array*/ addClassStr, /*String|Array?*/ removeClassStr){
+			// summary:
+			//		Replaces one or more classes on a node if not present.
+			//		Operates more quickly than calling dojo.removeClass and dojo.addClass
+			//
+			// node: String|DOMNode
+			//		String ID or DomNode reference to remove the class from.
+			//
+			// addClassStr: String|Array
+			//		A String class name to add, or several space-separated class names,
+			//		or an array of class names.
+			//
+			// removeClassStr: String|Array?
+			//		A String class name to remove, or several space-separated class names,
+			//		or an array of class names.
+			//
+			// example:
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.replace("someNode", "add1 add2", "remove1 remove2");
+			//	|	});
+			//
+			// example:
+			//	Replace all classes with addMe
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.replace("someNode", "addMe");
+			//	|	});
+			//
+			// example:
+			//	Available in `dojo/NodeList` for multiple toggles
+			//	|	require(["dojo/query"], function(query){
+			//	|		query(".findMe").replaceClass("addMe", "removeMe");
+			//	|	});
+
+			node = dom.byId(node);
+			fakeNode[className] = node[className];
+			cls.remove(fakeNode, removeClassStr);
+			cls.add(fakeNode, addClassStr);
+			if(node[className] !== fakeNode[className]){
+				node[className] = fakeNode[className];
+			}
+		},
+
+		toggle: function toggleClass(/*DomNode|String*/ node, /*String|Array*/ classStr, /*Boolean?*/ condition){
+			// summary:
+			//		Adds a class to node if not present, or removes if present.
+			//		Pass a boolean condition if you want to explicitly add or remove.
+			//		Returns the condition that was specified directly or indirectly.
+			//
+			// node: String|DOMNode
+			//		String ID or DomNode reference to toggle a class string
+			//
+			// classStr: String|Array
+			//		A String class name to toggle, or several space-separated class names,
+			//		or an array of class names.
+			//
+			// condition:
+			//		If passed, true means to add the class, false means to remove.
+			//		Otherwise dojo.hasClass(node, classStr) is used to detect the class presence.
+			//
+			// example:
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.toggle("someNode", "hovered");
+			//	|	});
+			//
+			// example:
+			//		Forcefully add a class
+			//	|	require(["dojo/dom-class"], function(domClass){
+			//	|		domClass.toggle("someNode", "hovered", true);
+			//	|	});
+			//
+			// example:
+			//		Available in `dojo/NodeList` for multiple toggles
+			//	|	require(["dojo/query"], function(query){
+			//	|		query(".toggleMe").toggleClass("toggleMe");
+			//	|	});
+
+			node = dom.byId(node);
+			if(condition === undefined){
+				classStr = str2array(classStr);
+				for(var i = 0, len = classStr.length, c; i < len; ++i){
+					c = classStr[i];
+					cls[cls.contains(node, c) ? "remove" : "add"](node, c);
+				}
+			}else{
+				cls[condition ? "add" : "remove"](node, classStr);
+			}
+			return condition;   // Boolean
+		}
+	};
+
+	return cls;
+});
+
+},
+'dojo/_base/array':function(){
+define(["./kernel", "../has", "./lang"], function(dojo, has, lang){
+	// module:
+	//		dojo/_base/array
+
+	// our old simple function builder stuff
+	var cache = {}, u;
+
+	function buildFn(fn){
+		return cache[fn] = new Function("item", "index", "array", fn); // Function
+	}
+	// magic snippet: if(typeof fn == "string") fn = cache[fn] || buildFn(fn);
+
+	// every & some
+
+	function everyOrSome(some){
+		var every = !some;
+		return function(a, fn, o){
+			var i = 0, l = a && a.length || 0, result;
+			if(l && typeof a == "string") a = a.split("");
+			if(typeof fn == "string") fn = cache[fn] || buildFn(fn);
+			if(o){
+				for(; i < l; ++i){
+					result = !fn.call(o, a[i], i, a);
+					if(some ^ result){
+						return !result;
+					}
+				}
+			}else{
+				for(; i < l; ++i){
+					result = !fn(a[i], i, a);
+					if(some ^ result){
+						return !result;
+					}
+				}
+			}
+			return every; // Boolean
+		};
+	}
+
+	// indexOf, lastIndexOf
+
+	function index(up){
+		var delta = 1, lOver = 0, uOver = 0;
+		if(!up){
+			delta = lOver = uOver = -1;
+		}
+		return function(a, x, from, last){
+			if(last && delta > 0){
+				// TODO: why do we use a non-standard signature? why do we need "last"?
+				return array.lastIndexOf(a, x, from);
+			}
+			var l = a && a.length || 0, end = up ? l + uOver : lOver, i;
+			if(from === u){
+				i = up ? lOver : l + uOver;
+			}else{
+				if(from < 0){
+					i = l + from;
+					if(i < 0){
+						i = lOver;
+					}
+				}else{
+					i = from >= l ? l + uOver : from;
+				}
+			}
+			if(l && typeof a == "string") a = a.split("");
+			for(; i != end; i += delta){
+				if(a[i] == x){
+					return i; // Number
+				}
+			}
+			return -1; // Number
+		};
+	}
+
+	var array = {
+		// summary:
+		//		The Javascript v1.6 array extensions.
+
+		every: everyOrSome(false),
+		/*=====
+		 every: function(arr, callback, thisObject){
+			 // summary:
+			 //		Determines whether or not every item in arr satisfies the
+			 //		condition implemented by callback.
+			 // arr: Array|String
+			 //		the array to iterate on. If a string, operates on individual characters.
+			 // callback: Function|String
+			 //		a function is invoked with three arguments: item, index,
+			 //		and array and returns true if the condition is met.
+			 // thisObject: Object?
+			 //		may be used to scope the call to callback
+			 // returns: Boolean
+			 // description:
+			 //		This function corresponds to the JavaScript 1.6 Array.every() method, with one difference: when
+			 //		run over sparse arrays, this implementation passes the "holes" in the sparse array to
+			 //		the callback function with a value of undefined. JavaScript 1.6's every skips the holes in the sparse array.
+			 //		For more details, see:
+			 //		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/every
+			 // example:
+			 //	|	// returns false
+			 //	|	array.every([1, 2, 3, 4], function(item){ return item>1; });
+			 // example:
+			 //	|	// returns true
+			 //	|	array.every([1, 2, 3, 4], function(item){ return item>0; });
+		 },
+		 =====*/
+
+		some: everyOrSome(true),
+		/*=====
+		some: function(arr, callback, thisObject){
+			// summary:
+			//		Determines whether or not any item in arr satisfies the
+			//		condition implemented by callback.
+			// arr: Array|String
+			//		the array to iterate over. If a string, operates on individual characters.
+			// callback: Function|String
+			//		a function is invoked with three arguments: item, index,
+			//		and array and returns true if the condition is met.
+			// thisObject: Object?
+			//		may be used to scope the call to callback
+			// returns: Boolean
+			// description:
+			//		This function corresponds to the JavaScript 1.6 Array.some() method, with one difference: when
+			//		run over sparse arrays, this implementation passes the "holes" in the sparse array to
+			//		the callback function with a value of undefined. JavaScript 1.6's some skips the holes in the sparse array.
+			//		For more details, see:
+			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/some
+			// example:
+			//	| // is true
+			//	| array.some([1, 2, 3, 4], function(item){ return item>1; });
+			// example:
+			//	| // is false
+			//	| array.some([1, 2, 3, 4], function(item){ return item<1; });
+		},
+		=====*/
+
+		indexOf: index(true),
+		/*=====
+		indexOf: function(arr, value, fromIndex, findLast){
+			// summary:
+			//		locates the first index of the provided value in the
+			//		passed array. If the value is not found, -1 is returned.
+			// description:
+			//		This method corresponds to the JavaScript 1.6 Array.indexOf method, with one difference: when
+			//		run over sparse arrays, the Dojo function invokes the callback for every index whereas JavaScript
+			//		1.6's indexOf skips the holes in the sparse array.
+			//		For details on this method, see:
+			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/indexOf
+			// arr: Array
+			// value: Object
+			// fromIndex: Integer?
+			// findLast: Boolean?
+			// returns: Number
+		},
+		=====*/
+
+		lastIndexOf: index(false),
+		/*=====
+		lastIndexOf: function(arr, value, fromIndex){
+			// summary:
+			//		locates the last index of the provided value in the passed
+			//		array. If the value is not found, -1 is returned.
+			// description:
+			//		This method corresponds to the JavaScript 1.6 Array.lastIndexOf method, with one difference: when
+			//		run over sparse arrays, the Dojo function invokes the callback for every index whereas JavaScript
+			//		1.6's lastIndexOf skips the holes in the sparse array.
+			//		For details on this method, see:
+			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/lastIndexOf
+			// arr: Array,
+			// value: Object,
+			// fromIndex: Integer?
+			// returns: Number
+		},
+		=====*/
+
+		forEach: function(arr, callback, thisObject){
+			// summary:
+			//		for every item in arr, callback is invoked. Return values are ignored.
+			//		If you want to break out of the loop, consider using array.every() or array.some().
+			//		forEach does not allow breaking out of the loop over the items in arr.
+			// arr:
+			//		the array to iterate over. If a string, operates on individual characters.
+			// callback:
+			//		a function is invoked with three arguments: item, index, and array
+			// thisObject:
+			//		may be used to scope the call to callback
+			// description:
+			//		This function corresponds to the JavaScript 1.6 Array.forEach() method, with one difference: when
+			//		run over sparse arrays, this implementation passes the "holes" in the sparse array to
+			//		the callback function with a value of undefined. JavaScript 1.6's forEach skips the holes in the sparse array.
+			//		For more details, see:
+			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/forEach
+			// example:
+			//	| // log out all members of the array:
+			//	| array.forEach(
+			//	|		[ "thinger", "blah", "howdy", 10 ],
+			//	|		function(item){
+			//	|			0 && console.log(item);
+			//	|		}
+			//	| );
+			// example:
+			//	| // log out the members and their indexes
+			//	| array.forEach(
+			//	|		[ "thinger", "blah", "howdy", 10 ],
+			//	|		function(item, idx, arr){
+			//	|			0 && console.log(item, "at index:", idx);
+			//	|		}
+			//	| );
+			// example:
+			//	| // use a scoped object member as the callback
+			//	|
+			//	| var obj = {
+			//	|		prefix: "logged via obj.callback:",
+			//	|		callback: function(item){
+			//	|			0 && console.log(this.prefix, item);
+			//	|		}
+			//	| };
+			//	|
+			//	| // specifying the scope function executes the callback in that scope
+			//	| array.forEach(
+			//	|		[ "thinger", "blah", "howdy", 10 ],
+			//	|		obj.callback,
+			//	|		obj
+			//	| );
+			//	|
+			//	| // alternately, we can accomplish the same thing with lang.hitch()
+			//	| array.forEach(
+			//	|		[ "thinger", "blah", "howdy", 10 ],
+			//	|		lang.hitch(obj, "callback")
+			//	| );
+			// arr: Array|String
+			// callback: Function|String
+			// thisObject: Object?
+
+			var i = 0, l = arr && arr.length || 0;
+			if(l && typeof arr == "string") arr = arr.split("");
+			if(typeof callback == "string") callback = cache[callback] || buildFn(callback);
+			if(thisObject){
+				for(; i < l; ++i){
+					callback.call(thisObject, arr[i], i, arr);
+				}
+			}else{
+				for(; i < l; ++i){
+					callback(arr[i], i, arr);
+				}
+			}
+		},
+
+		map: function(arr, callback, thisObject, Ctr){
+			// summary:
+			//		applies callback to each element of arr and returns
+			//		an Array with the results
+			// arr: Array|String
+			//		the array to iterate on. If a string, operates on
+			//		individual characters.
+			// callback: Function|String
+			//		a function is invoked with three arguments, (item, index,
+			//		array),	 and returns a value
+			// thisObject: Object?
+			//		may be used to scope the call to callback
+			// returns: Array
+			// description:
+			//		This function corresponds to the JavaScript 1.6 Array.map() method, with one difference: when
+			//		run over sparse arrays, this implementation passes the "holes" in the sparse array to
+			//		the callback function with a value of undefined. JavaScript 1.6's map skips the holes in the sparse array.
+			//		For more details, see:
+			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/map
+			// example:
+			//	| // returns [2, 3, 4, 5]
+			//	| array.map([1, 2, 3, 4], function(item){ return item+1 });
+
+			// TODO: why do we have a non-standard signature here? do we need "Ctr"?
+			var i = 0, l = arr && arr.length || 0, out = new (Ctr || Array)(l);
+			if(l && typeof arr == "string") arr = arr.split("");
+			if(typeof callback == "string") callback = cache[callback] || buildFn(callback);
+			if(thisObject){
+				for(; i < l; ++i){
+					out[i] = callback.call(thisObject, arr[i], i, arr);
+				}
+			}else{
+				for(; i < l; ++i){
+					out[i] = callback(arr[i], i, arr);
+				}
+			}
+			return out; // Array
+		},
+
+		filter: function(arr, callback, thisObject){
+			// summary:
+			//		Returns a new Array with those items from arr that match the
+			//		condition implemented by callback.
+			// arr: Array
+			//		the array to iterate over.
+			// callback: Function|String
+			//		a function that is invoked with three arguments (item,
+			//		index, array). The return of this function is expected to
+			//		be a boolean which determines whether the passed-in item
+			//		will be included in the returned array.
+			// thisObject: Object?
+			//		may be used to scope the call to callback
+			// returns: Array
+			// description:
+			//		This function corresponds to the JavaScript 1.6 Array.filter() method, with one difference: when
+			//		run over sparse arrays, this implementation passes the "holes" in the sparse array to
+			//		the callback function with a value of undefined. JavaScript 1.6's filter skips the holes in the sparse array.
+			//		For more details, see:
+			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/filter
+			// example:
+			//	| // returns [2, 3, 4]
+			//	| array.filter([1, 2, 3, 4], function(item){ return item>1; });
+
+			// TODO: do we need "Ctr" here like in map()?
+			var i = 0, l = arr && arr.length || 0, out = [], value;
+			if(l && typeof arr == "string") arr = arr.split("");
+			if(typeof callback == "string") callback = cache[callback] || buildFn(callback);
+			if(thisObject){
+				for(; i < l; ++i){
+					value = arr[i];
+					if(callback.call(thisObject, value, i, arr)){
+						out.push(value);
+					}
+				}
+			}else{
+				for(; i < l; ++i){
+					value = arr[i];
+					if(callback(value, i, arr)){
+						out.push(value);
+					}
+				}
+			}
+			return out; // Array
+		},
+
+		clearCache: function(){
+			cache = {};
+		}
+	};
+
+
+	 1  && lang.mixin(dojo, array);
+
+	return array;
+});
+
+},
 'game/createJSON/main':function(){
 define([
   './poly',
@@ -9877,8 +10582,8 @@ define([
       var rect = {
         x: ((pts[1].x - pts[0].x)/2 + pts[0].x),
         y: ((pts[1].y - pts[0].y)/2 + pts[0].y),
-        halfWidth: ((pts[1].x - pts[0].x)/2 ),
-        halfHeight: ((pts[1].y - pts[0].y)/2 )
+        halfWidth: Math.abs((pts[1].x - pts[0].x) / 2),
+        halfHeight: Math.abs((pts[1].y - pts[0].y) / 2)
       };
       rect.staticBody = state.toolType === 'static';
       rect.zone = state.toolType === 'zone';
@@ -12509,7 +13214,7 @@ define([
         var files = e.dataTransfer.files;
 
         //only care about 1 image
-        if(files && files.length == 1 && files[0].type.match(/image.*/)){
+        if(files && files.length === 1 && files[0].type.match(/image.*/)){
           var file = files[0];
           var reader = new FileReader();
 
@@ -12518,7 +13223,7 @@ define([
           };
 
           reader.onload = function(evt) {
-            if (evt.target.readyState == FileReader.DONE) {
+            if (evt.target.readyState === FileReader.DONE) {
               0 && console.log('base64 length',evt.target.result.length);
 
               var backImg = new Image();
@@ -12635,7 +13340,7 @@ define([
 
       var loadCallback = function(aFile){
         return function(evt) {
-          if (evt.target.readyState == FileReader.DONE) {
+          if (evt.target.readyState === FileReader.DONE) {
             0 && console.log('base64 length',evt.target.result.length);
           }
         };
@@ -12671,12 +13376,11 @@ define([
   '../state',
   '../createBodies',
   './toggleRedo',
+  'lodash',
   'dojo/on',
   'dojo/query',
   'dojo/domReady!'
-], function(state, createBodies, toggleRedo, on, query){
-
-  var jsonEditor = query('#output')[0];
+], function(state, createBodies, toggleRedo, _, on, query){
 
   on(document, '#toolForm:change', function(e){
     state.geometries = [];
@@ -12694,8 +13398,16 @@ define([
 
   on(document, '#load:click', function(e){
     try {
-      var jsobj = JSON.parse(jsonEditor.value);
+      var jsobj = JSON.parse(state.codeMirror.getValue());
       state.jsonObjs = jsobj.objs;
+      if(jsobj.backImg){
+        state.backImg = new Image();
+        state.backImg.src = jsobj.backImg;
+      }
+      state.game.height = jsobj.canvas.height;
+      state.game.canvas.height = jsobj.canvas.height;
+      state.game.width = jsobj.canvas.width;
+      state.game.canvas.width = jsobj.canvas.width;
 
       createBodies();
 
@@ -12721,9 +13433,7 @@ define([
     toggleRedo();
   });
 
-  on(document, '#setGravity:click', function(e){
-    createBodies();
-  });
+  on(document, '.gravity:change', _.debounce(createBodies, 500));
 
   on(document, '#runSimulation:change', function(e){
     state.runSimulation = e.target.checked;
@@ -12735,7 +13445,6 @@ define([
 
   on(document, 'selectstart', function(e){
     e.preventDefault();
-    return false;
   });
 
 });
@@ -13463,352 +14172,6 @@ define(["./_base/kernel", "./has", "./dom", "./on", "./_base/array", "./_base/la
 	};
 	dojo.NodeList = query.NodeList = NodeList;
 	return query;
-});
-
-},
-'dojo/_base/array':function(){
-define(["./kernel", "../has", "./lang"], function(dojo, has, lang){
-	// module:
-	//		dojo/_base/array
-
-	// our old simple function builder stuff
-	var cache = {}, u;
-
-	function buildFn(fn){
-		return cache[fn] = new Function("item", "index", "array", fn); // Function
-	}
-	// magic snippet: if(typeof fn == "string") fn = cache[fn] || buildFn(fn);
-
-	// every & some
-
-	function everyOrSome(some){
-		var every = !some;
-		return function(a, fn, o){
-			var i = 0, l = a && a.length || 0, result;
-			if(l && typeof a == "string") a = a.split("");
-			if(typeof fn == "string") fn = cache[fn] || buildFn(fn);
-			if(o){
-				for(; i < l; ++i){
-					result = !fn.call(o, a[i], i, a);
-					if(some ^ result){
-						return !result;
-					}
-				}
-			}else{
-				for(; i < l; ++i){
-					result = !fn(a[i], i, a);
-					if(some ^ result){
-						return !result;
-					}
-				}
-			}
-			return every; // Boolean
-		};
-	}
-
-	// indexOf, lastIndexOf
-
-	function index(up){
-		var delta = 1, lOver = 0, uOver = 0;
-		if(!up){
-			delta = lOver = uOver = -1;
-		}
-		return function(a, x, from, last){
-			if(last && delta > 0){
-				// TODO: why do we use a non-standard signature? why do we need "last"?
-				return array.lastIndexOf(a, x, from);
-			}
-			var l = a && a.length || 0, end = up ? l + uOver : lOver, i;
-			if(from === u){
-				i = up ? lOver : l + uOver;
-			}else{
-				if(from < 0){
-					i = l + from;
-					if(i < 0){
-						i = lOver;
-					}
-				}else{
-					i = from >= l ? l + uOver : from;
-				}
-			}
-			if(l && typeof a == "string") a = a.split("");
-			for(; i != end; i += delta){
-				if(a[i] == x){
-					return i; // Number
-				}
-			}
-			return -1; // Number
-		};
-	}
-
-	var array = {
-		// summary:
-		//		The Javascript v1.6 array extensions.
-
-		every: everyOrSome(false),
-		/*=====
-		 every: function(arr, callback, thisObject){
-			 // summary:
-			 //		Determines whether or not every item in arr satisfies the
-			 //		condition implemented by callback.
-			 // arr: Array|String
-			 //		the array to iterate on. If a string, operates on individual characters.
-			 // callback: Function|String
-			 //		a function is invoked with three arguments: item, index,
-			 //		and array and returns true if the condition is met.
-			 // thisObject: Object?
-			 //		may be used to scope the call to callback
-			 // returns: Boolean
-			 // description:
-			 //		This function corresponds to the JavaScript 1.6 Array.every() method, with one difference: when
-			 //		run over sparse arrays, this implementation passes the "holes" in the sparse array to
-			 //		the callback function with a value of undefined. JavaScript 1.6's every skips the holes in the sparse array.
-			 //		For more details, see:
-			 //		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/every
-			 // example:
-			 //	|	// returns false
-			 //	|	array.every([1, 2, 3, 4], function(item){ return item>1; });
-			 // example:
-			 //	|	// returns true
-			 //	|	array.every([1, 2, 3, 4], function(item){ return item>0; });
-		 },
-		 =====*/
-
-		some: everyOrSome(true),
-		/*=====
-		some: function(arr, callback, thisObject){
-			// summary:
-			//		Determines whether or not any item in arr satisfies the
-			//		condition implemented by callback.
-			// arr: Array|String
-			//		the array to iterate over. If a string, operates on individual characters.
-			// callback: Function|String
-			//		a function is invoked with three arguments: item, index,
-			//		and array and returns true if the condition is met.
-			// thisObject: Object?
-			//		may be used to scope the call to callback
-			// returns: Boolean
-			// description:
-			//		This function corresponds to the JavaScript 1.6 Array.some() method, with one difference: when
-			//		run over sparse arrays, this implementation passes the "holes" in the sparse array to
-			//		the callback function with a value of undefined. JavaScript 1.6's some skips the holes in the sparse array.
-			//		For more details, see:
-			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/some
-			// example:
-			//	| // is true
-			//	| array.some([1, 2, 3, 4], function(item){ return item>1; });
-			// example:
-			//	| // is false
-			//	| array.some([1, 2, 3, 4], function(item){ return item<1; });
-		},
-		=====*/
-
-		indexOf: index(true),
-		/*=====
-		indexOf: function(arr, value, fromIndex, findLast){
-			// summary:
-			//		locates the first index of the provided value in the
-			//		passed array. If the value is not found, -1 is returned.
-			// description:
-			//		This method corresponds to the JavaScript 1.6 Array.indexOf method, with one difference: when
-			//		run over sparse arrays, the Dojo function invokes the callback for every index whereas JavaScript
-			//		1.6's indexOf skips the holes in the sparse array.
-			//		For details on this method, see:
-			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/indexOf
-			// arr: Array
-			// value: Object
-			// fromIndex: Integer?
-			// findLast: Boolean?
-			// returns: Number
-		},
-		=====*/
-
-		lastIndexOf: index(false),
-		/*=====
-		lastIndexOf: function(arr, value, fromIndex){
-			// summary:
-			//		locates the last index of the provided value in the passed
-			//		array. If the value is not found, -1 is returned.
-			// description:
-			//		This method corresponds to the JavaScript 1.6 Array.lastIndexOf method, with one difference: when
-			//		run over sparse arrays, the Dojo function invokes the callback for every index whereas JavaScript
-			//		1.6's lastIndexOf skips the holes in the sparse array.
-			//		For details on this method, see:
-			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/lastIndexOf
-			// arr: Array,
-			// value: Object,
-			// fromIndex: Integer?
-			// returns: Number
-		},
-		=====*/
-
-		forEach: function(arr, callback, thisObject){
-			// summary:
-			//		for every item in arr, callback is invoked. Return values are ignored.
-			//		If you want to break out of the loop, consider using array.every() or array.some().
-			//		forEach does not allow breaking out of the loop over the items in arr.
-			// arr:
-			//		the array to iterate over. If a string, operates on individual characters.
-			// callback:
-			//		a function is invoked with three arguments: item, index, and array
-			// thisObject:
-			//		may be used to scope the call to callback
-			// description:
-			//		This function corresponds to the JavaScript 1.6 Array.forEach() method, with one difference: when
-			//		run over sparse arrays, this implementation passes the "holes" in the sparse array to
-			//		the callback function with a value of undefined. JavaScript 1.6's forEach skips the holes in the sparse array.
-			//		For more details, see:
-			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/forEach
-			// example:
-			//	| // log out all members of the array:
-			//	| array.forEach(
-			//	|		[ "thinger", "blah", "howdy", 10 ],
-			//	|		function(item){
-			//	|			0 && console.log(item);
-			//	|		}
-			//	| );
-			// example:
-			//	| // log out the members and their indexes
-			//	| array.forEach(
-			//	|		[ "thinger", "blah", "howdy", 10 ],
-			//	|		function(item, idx, arr){
-			//	|			0 && console.log(item, "at index:", idx);
-			//	|		}
-			//	| );
-			// example:
-			//	| // use a scoped object member as the callback
-			//	|
-			//	| var obj = {
-			//	|		prefix: "logged via obj.callback:",
-			//	|		callback: function(item){
-			//	|			0 && console.log(this.prefix, item);
-			//	|		}
-			//	| };
-			//	|
-			//	| // specifying the scope function executes the callback in that scope
-			//	| array.forEach(
-			//	|		[ "thinger", "blah", "howdy", 10 ],
-			//	|		obj.callback,
-			//	|		obj
-			//	| );
-			//	|
-			//	| // alternately, we can accomplish the same thing with lang.hitch()
-			//	| array.forEach(
-			//	|		[ "thinger", "blah", "howdy", 10 ],
-			//	|		lang.hitch(obj, "callback")
-			//	| );
-			// arr: Array|String
-			// callback: Function|String
-			// thisObject: Object?
-
-			var i = 0, l = arr && arr.length || 0;
-			if(l && typeof arr == "string") arr = arr.split("");
-			if(typeof callback == "string") callback = cache[callback] || buildFn(callback);
-			if(thisObject){
-				for(; i < l; ++i){
-					callback.call(thisObject, arr[i], i, arr);
-				}
-			}else{
-				for(; i < l; ++i){
-					callback(arr[i], i, arr);
-				}
-			}
-		},
-
-		map: function(arr, callback, thisObject, Ctr){
-			// summary:
-			//		applies callback to each element of arr and returns
-			//		an Array with the results
-			// arr: Array|String
-			//		the array to iterate on. If a string, operates on
-			//		individual characters.
-			// callback: Function|String
-			//		a function is invoked with three arguments, (item, index,
-			//		array),	 and returns a value
-			// thisObject: Object?
-			//		may be used to scope the call to callback
-			// returns: Array
-			// description:
-			//		This function corresponds to the JavaScript 1.6 Array.map() method, with one difference: when
-			//		run over sparse arrays, this implementation passes the "holes" in the sparse array to
-			//		the callback function with a value of undefined. JavaScript 1.6's map skips the holes in the sparse array.
-			//		For more details, see:
-			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/map
-			// example:
-			//	| // returns [2, 3, 4, 5]
-			//	| array.map([1, 2, 3, 4], function(item){ return item+1 });
-
-			// TODO: why do we have a non-standard signature here? do we need "Ctr"?
-			var i = 0, l = arr && arr.length || 0, out = new (Ctr || Array)(l);
-			if(l && typeof arr == "string") arr = arr.split("");
-			if(typeof callback == "string") callback = cache[callback] || buildFn(callback);
-			if(thisObject){
-				for(; i < l; ++i){
-					out[i] = callback.call(thisObject, arr[i], i, arr);
-				}
-			}else{
-				for(; i < l; ++i){
-					out[i] = callback(arr[i], i, arr);
-				}
-			}
-			return out; // Array
-		},
-
-		filter: function(arr, callback, thisObject){
-			// summary:
-			//		Returns a new Array with those items from arr that match the
-			//		condition implemented by callback.
-			// arr: Array
-			//		the array to iterate over.
-			// callback: Function|String
-			//		a function that is invoked with three arguments (item,
-			//		index, array). The return of this function is expected to
-			//		be a boolean which determines whether the passed-in item
-			//		will be included in the returned array.
-			// thisObject: Object?
-			//		may be used to scope the call to callback
-			// returns: Array
-			// description:
-			//		This function corresponds to the JavaScript 1.6 Array.filter() method, with one difference: when
-			//		run over sparse arrays, this implementation passes the "holes" in the sparse array to
-			//		the callback function with a value of undefined. JavaScript 1.6's filter skips the holes in the sparse array.
-			//		For more details, see:
-			//		https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/filter
-			// example:
-			//	| // returns [2, 3, 4]
-			//	| array.filter([1, 2, 3, 4], function(item){ return item>1; });
-
-			// TODO: do we need "Ctr" here like in map()?
-			var i = 0, l = arr && arr.length || 0, out = [], value;
-			if(l && typeof arr == "string") arr = arr.split("");
-			if(typeof callback == "string") callback = cache[callback] || buildFn(callback);
-			if(thisObject){
-				for(; i < l; ++i){
-					value = arr[i];
-					if(callback.call(thisObject, value, i, arr)){
-						out.push(value);
-					}
-				}
-			}else{
-				for(; i < l; ++i){
-					value = arr[i];
-					if(callback(value, i, arr)){
-						out.push(value);
-					}
-				}
-			}
-			return out; // Array
-		},
-
-		clearCache: function(){
-			cache = {};
-		}
-	};
-
-
-	 1  && lang.mixin(dojo, array);
-
-	return array;
 });
 
 },
