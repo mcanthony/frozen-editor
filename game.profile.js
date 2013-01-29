@@ -7,7 +7,6 @@ var profile = (function(){
   };
 
   return {
-    basePath: "./",
     releaseDir: "libs",
     action: "release",
     layerOptimize: "closure",
@@ -15,14 +14,6 @@ var profile = (function(){
     selectorEngine: "acme",
 
     dojoBootText: "(function(){ require({cache:{}}); require.boot && require.apply(null, require.boot); })();",
-
-    packages: [
-      { name: 'dojo', location: 'deps/dojo' },
-      { name: 'dcl', location: 'deps/dcl', main: 'dcl' },
-      { name: 'frozen', location: 'deps/frozen/src', main: 'GameCore' },
-      { name: 'lodash', location: 'deps/lodash', main: 'lodash' },
-      { name: 'game', location: './src', main: 'game' }
-    ],
 
     defaultConfig: {
       hasCache:{

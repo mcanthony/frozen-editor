@@ -1898,6 +1898,7 @@
 })
 (this.dojoConfig || this.djConfig || this.require || {}, {
 		async:1,
+		baseUrl:"./",
 		hasCache:{
 				'config-selectorEngine':"acme",
 				'config-tlmSiblingOfDojo':1,
@@ -1907,6 +1908,10 @@
 				'host-browser':1
 		},
 		packages:[
+				{
+					 location:"../frozen-dev-boilerplate",
+					 name:"frozen-dev-boilerplate"
+				},
 				{
 					 location:".",
 					 name:"dojo"
@@ -1930,10 +1935,6 @@
 					 location:"../game",
 					 main:"game",
 					 name:"game"
-				},
-				{
-					 location:"../frozen-dev-boilerplate",
-					 name:"frozen-dev-boilerplate"
 				}
 		]
 });require({cache:{
