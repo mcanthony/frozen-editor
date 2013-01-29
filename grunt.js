@@ -10,7 +10,7 @@ module.exports = function(grunt) {
       files: ['test/**/*.js']
     },
     watch: {
-      files: ['<config:lint.files>', 'index.html', 'gameStyles.css', 'dojoConfig.js'],
+      files: ['<config:lint.files>', 'index.html', '*.css', 'dojoConfig.js'],
       tasks: 'lint reload'
     },
     clean: {
@@ -45,7 +45,8 @@ module.exports = function(grunt) {
       globals: {
         define: true,
         require: true,
-        console: true
+        console: true,
+        CodeMirror: true
       }
     }
   });
