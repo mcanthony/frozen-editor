@@ -5239,6 +5239,7 @@ th[class*="span"] {
   outline: 2px #ccc solid !important;
 }
 .input-control > input[type=text],
+.input-control > input[type=number],
 .input-control > input[type=email],
 .input-control > input[type=url],
 .input-control > input[type=phone],
@@ -5255,6 +5256,7 @@ th[class*="span"] {
   position: relative;
 }
 .input-control > input[type=text]:disabled,
+.input-control > input[type=number]:disabled,
 .input-control > input[type=email]:disabled,
 .input-control > input[type=url]:disabled,
 .input-control > input[type=phone]:disabled,
@@ -5264,6 +5266,7 @@ th[class*="span"] {
   background-color: #eaeaea;
 }
 .input-control > input[type=text]:focus,
+.input-control > input[type=number]:focus,
 .input-control > input[type=email]:focus,
 .input-control > input[type=url]:focus,
 .input-control > input[type=phone]:focus,
@@ -5273,6 +5276,7 @@ th[class*="span"] {
   border-color: #000;
 }
 .input-control > input[type=text]::-ms-clear,
+.input-control > input[type=number]::-ms-clear,
 .input-control > input[type=email]::-ms-clear,
 .input-control > input[type=url]::-ms-clear,
 .input-control > input[type=phone]::-ms-clear {
@@ -5289,7 +5293,9 @@ th[class*="span"] {
   min-height: 100px;
 }
 .input-control.text input[type=text]:not(:focus) + .helper,
+.input-control.text input[type=number]:not(:focus) + .helper,
 .input-control.password input[type=text]:not(:focus) + .helper,
+.input-control.password input[type=number]:not(:focus) + .helper,
 .input-control.text input[type=password]:not(:focus) + .helper,
 .input-control.password input[type=password]:not(:focus) + .helper,
 .input-control.text input[type=email]:not(:focus) + .helper,
@@ -5301,7 +5307,9 @@ th[class*="span"] {
   display: none;
 }
 .input-control.text input[type=text]:focus + .helper,
+.input-control.text input[type=number]:focus + .helper,
 .input-control.password input[type=text]:focus + .helper,
+.input-control.password input[type=number]:focus + .helper,
 .input-control.text input[type=password]:focus + .helper,
 .input-control.password input[type=password]:focus + .helper,
 .input-control.text input[type=email]:focus + .helper,
@@ -5313,7 +5321,9 @@ th[class*="span"] {
   display: block;
 }
 .input-control.text input[type=text]:not(:focus) + .helper:active,
+.input-control.text input[type=number]:not(:focus) + .helper:active,
 .input-control.password input[type=text]:not(:focus) + .helper:active,
+.input-control.password input[type=number]:not(:focus) + .helper:active,
 .input-control.text input[type=password]:not(:focus) + .helper:active,
 .input-control.password input[type=password]:not(:focus) + .helper:active,
 .input-control.text input[type=email]:not(:focus) + .helper:active,

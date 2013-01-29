@@ -41,6 +41,19 @@ a {
   padding-right: 105px;
 }
 
+.error {
+  color: #B31414;
+  font-weight: 600;
+}
+
+.hide {
+  display: none;
+}
+
+.CodeMirror-scroll {
+  padding-right: 135px;
+}
+
 /* Buttons based off the GMail button CSS */
 button {
   background-color: #10b7fb;
