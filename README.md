@@ -1,4 +1,12 @@
-# Frozen Development Boilerplate
+# Frozen Editor
+
+This is a Box2D editor based on frozen/box2dEditor but cleaned up and made pretty.
+
+Many thanks to @monteslu for developing the original editor and allowing me to complain about the code.
+
+This project is currently hosted at http://phated.github.com/frozen-editor/ - feel free to try it out and please file any bugs you may find.
+
+# Based on Frozen Development Boilerplate
 
 ## Getting started
 

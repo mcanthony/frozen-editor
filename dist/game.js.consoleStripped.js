@@ -1909,8 +1909,8 @@
 		},
 		packages:[
 				{
-					 location:"../frozen-dev-boilerplate",
-					 name:"frozen-dev-boilerplate"
+					 location:"../frozen-editor",
+					 name:"frozen-editor"
 				},
 				{
 					 location:".",

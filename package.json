@@ -1,5 +1,5 @@
 {
-  "name": "frozen-dev-boilerplate",
+  "name": "frozen-editor",
   "version": "0.1.0",
   "volo": {
     "baseUrl": "deps",
