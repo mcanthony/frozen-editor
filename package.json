@@ -9,7 +9,8 @@
       "dcl": "github:uhop/dcl/1.0.2",
       "Box2d.min": "https://box2dweb.googlecode.com/svn/trunk/Box2d.min.js",
       "frozen": "github:iceddev/frozen/0.2.0",
-      "lodash": "github:bestiejs/lodash/v0.10.0"
+      "lodash": "github:bestiejs/lodash/v0.10.0",
+      "CodeMirror": "github:marijnh/CodeMirror/v3.02"
     }
   },
   "dojoBuild": "game.profile.js",
