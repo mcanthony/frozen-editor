@@ -1,6 +1,7 @@
 define([
   './StateManager',
-  'dojo/dom'
+  'dojo/dom',
+  'dojo/domReady!'
 ], function(StateManager, dom){
 
   var state = new StateManager({
