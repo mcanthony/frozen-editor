@@ -18,12 +18,12 @@ define([
     var errors = false;
     var gravity = getGravity();
 
-    state.box = new Box({
+    state.game.box = new Box({
       gravityX: gravity.x,
       gravityY: gravity.y
     });
 
-    state.entities = {};
+    state.game.entities = {};
 
     var max = _.chain(state.jsonObjs).map(function(obj){
       var id = parseInt(obj.id, 10);
@@ -46,11 +46,11 @@ define([
         geomId++;
       }
 
-      if(!state.entities[obj.id]){
+      if(!state.game.entities[obj.id]){
         var ent = new Entities[obj.type](obj);
-        state.entities[obj.id] = ent;
+        state.game.entities[obj.id] = ent;
         if(!obj.zone){
-          state.box.addBody(ent);
+          state.game.box.addBody(ent);
         }
       } else {
         errors = true;

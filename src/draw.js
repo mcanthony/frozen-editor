@@ -11,7 +11,7 @@ define([
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    _.forEach(state.entities, function(entity){
+    _.forEach(this.entities, function(entity){
       if(!entity.staticBody || state.showStatic){
         entity.draw(ctx);
       }

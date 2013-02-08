@@ -1946,18 +1946,16 @@ define([], 1);
 define([
   './state',
   './handleInput',
-  './update',
   './draw',
-  'frozen/GameCore',
+  'frozen/box2d/BoxGame',
   './ui/CanvasDND',
   './ui/events'
-], function(state, handleInput, update, draw, GameCore, CanvasDND){
+], function(state, handleInput, draw, BoxGame, CanvasDND){
 
-  //setup a GameCore instance
-  var game = new GameCore({
+  //setup a BoxGame instance
+  var game = new BoxGame({
     canvasId: 'canvas',
     handleInput: handleInput,
-    update: update,
     draw: draw
   });
 
@@ -1987,7 +1985,6 @@ define([
     geometries: [],
     tool: 'rectangle',
     toolType: 'static',
-    runSimulation: true,
     showStatic: true,
     box: box,
     backImg: null,
@@ -4711,12 +4708,12 @@ define([
     var errors = false;
     var gravity = getGravity();
 
-    state.box = new Box({
+    state.game.box = new Box({
       gravityX: gravity.x,
       gravityY: gravity.y
     });
 
-    state.entities = {};
+    state.game.entities = {};
 
     var max = _.chain(state.jsonObjs).map(function(obj){
       var id = parseInt(obj.id, 10);
@@ -4739,11 +4736,11 @@ define([
         geomId++;
       }
 
-      if(!state.entities[obj.id]){
+      if(!state.game.entities[obj.id]){
         var ent = new Entities[obj.type](obj);
-        state.entities[obj.id] = ent;
+        state.game.entities[obj.id] = ent;
         if(!obj.zone){
-          state.box.addBody(ent);
+          state.game.box.addBody(ent);
         }
       } else {
         errors = true;
@@ -10688,20 +10685,6 @@ define(function(){
 
 });
 },
-'game/update':function(){
-define([
-  './state'
-], function(state){
-
-  return function(millis){
-    if(state.runSimulation){
-      state.box.update(millis);
-      state.box.updateExternalState(state.entities);
-    }
-  };
-
-});
-},
 'game/draw':function(){
 define([
   './draw/shape',
@@ -10716,7 +10699,7 @@ define([
       ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    _.forEach(state.entities, function(entity){
+    _.forEach(this.entities, function(entity){
       if(!entity.staticBody || state.showStatic){
         entity.draw(ctx);
       }
@@ -10826,6 +10809,39 @@ define([
 
     ctx.strokeRect(pts[0].x, pts[0].y, pts[1].x - pts[0].x, pts[1].y - pts[0].y);
   };
+
+});
+},
+'frozen/box2d/BoxGame':function(){
+define([
+  '../GameCore',
+  './Box',
+  'dcl',
+  'dcl/bases/Mixer'
+], function(GameCore, Box, dcl, Mixer){
+
+  return dcl([GameCore, Mixer], {
+    box: null,
+    boxUpdating: true,
+    entities: null,
+
+    constructor: function(){
+      if(!this.box){
+        this.box = new Box();
+      }
+
+      if(!this.entities){
+        this.entities = {};
+      }
+    },
+
+    preUpdate: function(millis){
+      if(this.boxUpdating){
+        this.box.update(millis);
+        this.box.updateExternalState(this.entities);
+      }
+    }
+  });
 
 });
 },
@@ -11016,6 +11032,7 @@ define([
         this.handleInput(this.inputManager,this.elapsedTime);
         if(!this.paused){
           // update
+          this.preUpdate(this.elapsedTime);
           this.update(this.elapsedTime);
         }
         // draw the screen
@@ -11045,6 +11062,15 @@ define([
       this.gameLoop();
       window.requestAnimationFrame(this.loopRunner);
     },
+
+    /**
+     * Can be overriden to do things before the update is called, used by BoxGame to update Box state before update is called.
+     * @name GameCore#preUpdate
+     * @function
+     * @param {Number} elapsedTime Elapsed time in milliseconds
+     */
+
+    preUpdate: function(elapsedTime) {},
 
     /**
      * Should be overridden to update the state of the game/animation based on the amount of elapsed time that has passed.
@@ -13236,10 +13262,8 @@ define([
 
                 state.backImg = backImg;
 
-                state.game.height = backImg.height;
-                state.game.canvas.height = backImg.height;
-                state.game.width = backImg.width;
-                state.game.canvas.width = backImg.width;
+                state.game.setHeight(backImg.height);
+                state.game.setWidth(backImg.width);
 
                 createBodies();
 
@@ -13407,10 +13431,8 @@ define([
         state.backImg = new Image();
         state.backImg.src = jsobj.backImg;
       }
-      state.game.height = jsobj.canvas.height;
-      state.game.canvas.height = jsobj.canvas.height;
-      state.game.width = jsobj.canvas.width;
-      state.game.canvas.width = jsobj.canvas.width;
+      state.game.setHeight(jsobj.canvas.height);
+      state.game.setWidth(jsobj.canvas.width);
 
       createBodies();
 
@@ -13439,7 +13461,7 @@ define([
   on(document, '.gravity:change', _.debounce(createBodies, 500));
 
   on(document, '#runSimulation:change', function(e){
-    state.runSimulation = e.target.checked;
+    state.game.boxUpdating = e.target.checked;
   });
 
   on(document, '#showStatic:change', function(e){
@@ -15723,5 +15745,200 @@ define([
 	return query;
 });
 
+},
+'frozen/sounds/WebAudio':function(){
+define([
+  'dcl',
+  'dojo/on',
+  'dojo/_base/lang'
+], function(dcl, on, lang){
+
+  'use strict';
+
+  var audioContext = null;
+  if(window.AudioContext){
+    audioContext = new window.AudioContext();
+  } else {
+    console.log('WebAudio not supported');
+  }
+
+  return dcl(null, {
+    declaredClass: 'frozen/sounds/WebAudio',
+    name: null,
+    complete: false,
+    audioContext: audioContext,
+    buffer: null,
+    constructor: function(filename){
+      if(typeof filename === 'string'){
+        this.load(filename);
+      }
+    },
+    load: function(filename){
+      this.name = filename;
+
+      var decodeAudioData = lang.partial(function(self, evt){
+        // Decode asynchronously
+        self.audioContext.decodeAudioData(this.response,
+          function(buffer){
+            self.buffer = buffer;
+            self.complete = true;
+          },
+          function(err){
+            console.info('error loading sound', err);
+          }
+        );
+      }, this);
+
+      //if the browser AudioContext, it's new enough for XMLHttpRequest
+      var request = new XMLHttpRequest();
+      request.open('GET', filename, true);
+      request.responseType = 'arraybuffer';
+
+      on(request, 'load', decodeAudioData);
+      request.send();
+    },
+    loop: function(volume){
+      var audio = this._initAudio(volume, true);
+      audio.noteOn(0);
+    },
+    play: function(volume, startTime){
+      startTime = startTime || 0;
+
+      var audio = this._initAudio(volume, false);
+      audio.noteOn(startTime);
+    },
+    _initAudio: function(volume, loop){
+      loop = typeof loop === 'boolean' ? loop : false;
+
+      var source = this.audioContext.createBufferSource();
+      source.buffer = this.buffer;
+      source.loop = loop;
+      if(volume){
+        var gainNode = this.audioContext.createGainNode();
+        gainNode.gain.value = volume;
+        source.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+      } else {
+        source.connect(this.audioContext.destination);
+      }
+      return source;
+    }
+  });
+
+});
+},
+'frozen/sounds/HTML5Audio':function(){
+define([
+  'dcl',
+  'dojo/on',
+  'dojo/_base/lang'
+], function(dcl, on, lang){
+
+  'use strict';
+
+  return dcl(null, {
+    declaredClass: 'frozen/sounds/HTML5Audio',
+    name: null,
+    complete: false,
+    audio: null,
+    constructor: function(filename){
+      this.audio = new Audio();
+      if(typeof filename === 'string'){
+        this.load(filename);
+      }
+    },
+    load: function(filename){
+      this.name = filename;
+      this.audio.pause();
+      this.audio.preload = 'auto';
+      this.audio.src = filename;
+      on(this.audio, 'loadeddata', lang.hitch(this, function(e){
+        this.complete = true;
+      }));
+    },
+    loop: function(volume){
+      var audio = this._initAudio(volume, true);
+      on(audio, 'loadeddata', function(e){
+        audio.play();
+      });
+    },
+    play: function(volume, startTime){
+      startTime = startTime || 0;
+
+      var audio = this._initAudio(volume, false);
+      on(audio, 'loadeddata', function(e){
+        audio.currentTime = startTime / 1000;
+        audio.play();
+      });
+    },
+    _initAudio: function(volume, loop){
+      loop = typeof loop === 'boolean' ? loop : false;
+
+      var audio = new Audio();
+      audio.pause();
+      audio.volume = volume || 1;
+      audio.loop = loop;
+      audio.preload = 'auto';
+      audio.src = this.name;
+      return audio;
+    }
+  });
+
+});
+},
+'frozen/plugins/loadImage':function(){
+define([
+  '../ResourceManager',
+  '../utils/parseString'
+], function(ResourceManager, parseString){
+
+  'use strict';
+
+  var rm = new ResourceManager();
+
+  return {
+    load: function(resource, req, callback, config){
+      resource = parseString(resource);
+      var res = rm.loadImage(resource);
+      callback(res);
+    }
+  };
+});
+},
+'frozen/utils/parseString':function(){
+define(function(){
+
+  'use strict';
+
+  return function parseString(resource){
+    if(resource.indexOf('{') === 0 && resource.lastIndexOf('}') === resource.length - 1){
+      resource = JSON.parse(resource.replace(/,/g, '","').replace(/:/g, '":"').replace(/\{/, '{"').replace(/\}/, '"}'));
+    } else if(resource.indexOf('[') === 0 && resource.lastIndexOf(']') === resource.length - 1){
+      resource = JSON.parse(resource.replace(/,/g, '","').replace(/\[/g, '["').replace(/\]/g, '"]'));
+    }
+
+    return resource;
+  };
+
+});
+},
+'frozen/plugins/loadSound':function(){
+define([
+  '../ResourceManager',
+  '../utils/parseString'
+], function(ResourceManager, parseString){
+
+  'use strict';
+
+  var rm = new ResourceManager();
+
+  return {
+    load: function(resource, req, callback, config){
+      resource = parseString(resource);
+      var res = rm.loadSound(resource);
+      callback(res);
+    }
+  };
+});
 }}});
 (function(){ require({cache:{}}); require.boot && require.apply(null, require.boot); })();

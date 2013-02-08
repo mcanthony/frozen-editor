@@ -11,7 +11,6 @@ define([
     geometries: [],
     tool: 'rectangle',
     toolType: 'static',
-    runSimulation: true,
     showStatic: true,
     box: box,
     backImg: null,

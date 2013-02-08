@@ -31,10 +31,8 @@ define([
 
                 state.backImg = backImg;
 
-                state.game.height = backImg.height;
-                state.game.canvas.height = backImg.height;
-                state.game.width = backImg.width;
-                state.game.canvas.width = backImg.width;
+                state.game.setHeight(backImg.height);
+                state.game.setWidth(backImg.width);
 
                 createBodies();
 

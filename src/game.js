@@ -1,18 +1,16 @@
 define([
   './state',
   './handleInput',
-  './update',
   './draw',
-  'frozen/GameCore',
+  'frozen/box2d/BoxGame',
   './ui/CanvasDND',
   './ui/events'
-], function(state, handleInput, update, draw, GameCore, CanvasDND){
+], function(state, handleInput, draw, BoxGame, CanvasDND){
 
-  //setup a GameCore instance
-  var game = new GameCore({
+  //setup a BoxGame instance
+  var game = new BoxGame({
     canvasId: 'canvas',
     handleInput: handleInput,
-    update: update,
     draw: draw
   });
 

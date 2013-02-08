@@ -68,7 +68,11 @@ var profile = (function(){
       },
       "dist/game": {
         include: [
-          'game'
+          'game',
+          'frozen/sounds/WebAudio',
+          'frozen/sounds/HTML5Audio',
+          'frozen/plugins/loadImage',
+          'frozen/plugins/loadSound'
         ],
         customBase: true,
         boot: true

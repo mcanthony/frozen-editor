@@ -30,10 +30,8 @@ define([
         state.backImg = new Image();
         state.backImg.src = jsobj.backImg;
       }
-      state.game.height = jsobj.canvas.height;
-      state.game.canvas.height = jsobj.canvas.height;
-      state.game.width = jsobj.canvas.width;
-      state.game.canvas.width = jsobj.canvas.width;
+      state.game.setHeight(jsobj.canvas.height);
+      state.game.setWidth(jsobj.canvas.width);
 
       createBodies();
 
@@ -62,7 +60,7 @@ define([
   on(document, '.gravity:change', _.debounce(createBodies, 500));
 
   on(document, '#runSimulation:change', function(e){
-    state.runSimulation = e.target.checked;
+    state.game.boxUpdating = e.target.checked;
   });
 
   on(document, '#showStatic:change', function(e){
