@@ -1,37 +1,22 @@
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
- /**
  * The InputManager handles DOM events for use in games.
  * @name InputManager
  * @class InputManager
  */
+
 define([
   './GameAction',
   './MouseAction',
+  './utils/insideCanvas',
   'dcl',
   'dcl/bases/Mixer',
+  'dojo/has',
   'dojo/on',
   'dojo/dom-style',
   'dojo/dom-geometry',
   'dojo/_base/lang',
   'dojo/domReady!'
-], function(GameAction, MouseAction, dcl, Mixer, on, domStyle, domGeom, lang){
+], function(GameAction, MouseAction, insideCanvas, dcl, Mixer, has, on, domStyle, domGeom, lang){
 
   'use strict';
 
@@ -51,14 +36,14 @@ define([
         on(document, 'keyup', lang.hitch(this, "keyReleased"));
       }
 
-      if(this.handleMouse){
-        on(this.canvas, 'mousedown', lang.hitch(this, "mouseDown"));
+      if(this.handleMouse && !has('touch')){
+        on(document, 'mousedown', lang.hitch(this, "mouseDown"));
         on(document, 'mousemove', lang.hitch(this, "mouseMove"));
         on(document, 'mouseup', lang.hitch(this, "mouseUp"));
       }
 
-      if(this.handleTouch){
-        on(this.canvas, 'touchstart', lang.hitch(this, "touchStart"));
+      if(this.handleTouch && has('touch')){
+        on(document, 'touchstart', lang.hitch(this, "touchStart"));
         on(document, 'touchmove', lang.hitch(this, "touchMove"));
         on(document, 'touchend', lang.hitch(this, "touchEnd"));
       }
@@ -122,25 +107,41 @@ define([
       this.mouseAction.endPosition = this.getMouseLoc(e);
     },
     mouseDown: function(e){
-      this.mouseAction.press();
-      this.mouseAction.startPosition = this.getMouseLoc(e);
-      this.mouseAction.position = this.mouseAction.startPosition;
+      var currentPoint = this.getMouseLoc(e);
+      this.mouseAction.endPosition = null;
+      this.mouseAction.insideCanvas = insideCanvas(currentPoint, this.canvas);
+      if(this.mouseAction.insideCanvas){
+        this.mouseAction.press();
+        this.mouseAction.startPosition = currentPoint;
+        this.mouseAction.position = currentPoint;
+      } else {
+        this.mouseAction.startPosition = null;
+      }
     },
     mouseMove: function(e){
       this.mouseAction.position = this.getMouseLoc(e);
     },
     touchStart: function(e){
-      this.touchAction.press();
-      this.touchAction.startPosition = this.getMouseLoc(e.changedTouches[0]);
-      this.touchAction.position = this.touchAction.startPosition;
+      var currentPoint = this.getMouseLoc(e.changedTouches[0]);
+      this.touchAction.endPosition = null;
+      this.touchAction.insideCanvas = insideCanvas(currentPoint, this.canvas);
+      if(this.touchAction.insideCanvas){
+        this.touchAction.press();
+        this.touchAction.startPosition = currentPoint;
+        this.touchAction.position = currentPoint;
+      } else {
+        this.touchAction.startPosition = null;
+      }
     },
     touchEnd: function(e){
       this.touchAction.release();
-      this.mouseAction.endPosition = this.getMouseLoc(e);
+      this.touchAction.endPosition = this.getMouseLoc(e.changedTouches[0]);
     },
     touchMove: function(e){
       this.touchAction.position = this.getMouseLoc(e.changedTouches[0]);
-      e.preventDefault();
+      if(this.touchAction.startPosition){
+        e.preventDefault();
+      }
     },
     getKeyAction: function(e) {
       if (this.keyActions.length) {

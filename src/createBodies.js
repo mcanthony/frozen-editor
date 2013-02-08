@@ -9,7 +9,6 @@ define([
   'frozen/box2d/Box'
 ], function(state, Entities, getGravity, displayJSON, toggleUndo, _, domClass, Box){
 
-  var SCALE = 30;
   var DYNAMIC_COLOR = 'rgba(0,255,0,0.4)';
   var ZONE_COLOR = 'rgba(255,0,0,0.2)';
 
@@ -49,7 +48,6 @@ define([
 
       if(!state.entities[obj.id]){
         var ent = new Entities[obj.type](obj);
-        ent.scaleShape(1 / SCALE);
         state.entities[obj.id] = ent;
         if(!obj.zone){
           state.box.addBody(ent);

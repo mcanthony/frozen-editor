@@ -2301,7 +2301,7 @@ define(["./has"], function(has){
 
 },
 'dojo/has':function(){
-define("dojo/has", ["require", "module"], function(require, module){
+define(["require", "module"], function(require, module){
 	// module:
 	//		dojo/has
 	// summary:
@@ -3714,7 +3714,7 @@ define(["./kernel", "../has", "../sniff"], function(dojo, has){
 
 },
 'dojo/domReady':function(){
-define("dojo/domReady", ['./has'], function(has){
+define(['./has'], function(has){
 	var global = this,
 		doc = document,
 		readyStates = { 'loaded': 1, 'complete': 1 },
@@ -3815,24 +3815,6 @@ define("dojo/domReady", ['./has'], function(has){
 },
 'frozen/box2d/Box':function(){
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
-/**
  * This wraps the box2d world that contains bodies, shapes, and performs the physics calculations.
  * @name Box
  * @class Box
@@ -3847,37 +3829,41 @@ define([
   'use strict';
 
   // box2d globals
-
-  var B2Vec2 = Box2D.Common.Math.b2Vec2
-    , B2BodyDef = Box2D.Dynamics.b2BodyDef
-    , B2Body = Box2D.Dynamics.b2Body
-    , B2FixtureDef = Box2D.Dynamics.b2FixtureDef
-    , B2Fixture = Box2D.Dynamics.b2Fixture
-    , B2World = Box2D.Dynamics.b2World
-    , B2MassData = Box2D.Collision.Shapes.b2MassData
-    , B2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
-    , B2CircleShape = Box2D.Collision.Shapes.b2CircleShape
-    , B2DebugDraw = Box2D.Dynamics.b2DebugDraw
-    , B2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
+  var B2Vec2 = Box2D.Common.Math.b2Vec2;
+  var B2BodyDef = Box2D.Dynamics.b2BodyDef;
+  var B2Body = Box2D.Dynamics.b2Body;
+  var B2FixtureDef = Box2D.Dynamics.b2FixtureDef;
+  var B2Fixture = Box2D.Dynamics.b2Fixture;
+  var B2World = Box2D.Dynamics.b2World;
+  var B2MassData = Box2D.Collision.Shapes.b2MassData;
+  var B2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape;
+  var B2CircleShape = Box2D.Collision.Shapes.b2CircleShape;
+  var B2DebugDraw = Box2D.Dynamics.b2DebugDraw;
 
   return dcl(Mixer, {
     intervalRate: 60,
     adaptive: false,
-    bodiesMap: [],
-    fixturesMap: [],
-    world: null,
+    bodiesMap: null,
+    fixturesMap: null,
+    jointsMap : null,
+    b2World: null,
     gravityX: 0,
-    gravityY: 10,
+    gravityY: 9.8,
     allowSleep: true,
     resolveCollisions: false,
     contactListener: null,
     collisions: null,
+    scale: 30, // 30 pixels ~ 1 meter in box2d
+
     constructor: function(args){
       if(args && args.intervalRate){
         this.intervalRate = parseInt(args.intervalRate, 10);
       }
+      this.bodiesMap = {};
+      this.fixturesMap = {};
+      this.jointsMap = {};
 
-      this.world = new B2World(new B2Vec2(this.gravityX, this.gravityY), this.allowSleep);
+      this.b2World = new B2World(new B2Vec2(this.gravityX, this.gravityY), this.allowSleep);
 
       if(this.resolveCollisions){
         this.addContactListener(this.contactListener || this);
@@ -3898,12 +3884,12 @@ define([
 
       var start = Date.now();
       if(millis){
-        this.world.Step(millis / 1000 /* frame-rate */, 10 /* velocity iterations */, 10 /*position iterations*/);
-        this.world.ClearForces();
+        this.b2World.Step(millis / 1000 /* frame-rate */, 10 /* velocity iterations */, 10 /*position iterations*/);
+        this.b2World.ClearForces();
       }else{
         var stepRate = (this.adaptive) ? (start - this.lastTimestamp) / 1000 : (1 / this.intervalRate);
-        this.world.Step(stepRate /* frame-rate */, 10 /* velocity iterations */, 10 /*position iterations*/);
-        this.world.ClearForces();
+        this.b2World.Step(stepRate /* frame-rate */, 10 /* velocity iterations */, 10 /*position iterations*/);
+        this.b2World.ClearForces();
       }
 
       return (Date.now() - start);
@@ -3916,22 +3902,21 @@ define([
     */
     getState: function() {
       var state = {};
-      for (var b = this.world.m_bodyList /*this.world.GetBodyList()*/; b; b = b.m_next) {
-        var userData = b.m_userData; // b.GetUserData();
-        if (b.IsActive() && typeof userData !== 'undefined' && userData !== null) {
-          state[userData] = {
-            x: b.m_xf.position.x, // b.GetPosition()
-            y: b.m_xf.position.y, // b.GetPosition()
-            angle: b.m_sweep.a, // b.GetAngle()
+      for (var b = this.b2World.GetBodyList(); b; b = b.m_next) {
+        if (b.IsActive() && typeof b.GetUserData() !== 'undefined' && b.GetUserData() !== null) {
+          state[b.GetUserData()] = {
+            x: b.GetPosition().x,
+            y: b.GetPosition().y,
+            angle: b.GetAngle(),
             center: {
-              x: b.m_sweep.c.x, // b.GetWorldCenter()
-              y: b.m_sweep.c.y // b.GetWorldCenter()
+              x: b.GetWorldCenter().x,
+              y: b.GetWorldCenter().y
             },
             linearVelocity: b.m_linearVelocity,
             angularVelocity: b.m_angularVelocity
           };
           if(this.resolveCollisions){
-            state[userData].collisions = this.collisions[userData] || null;
+            state[b.GetUserData()].collisions = this.collisions[b.GetUserData()] || null;
           }
         }
       }
@@ -3957,7 +3942,6 @@ define([
     },
 
     setBodies: function(bodyEntities) {
-      console.log('bodies',bodyEntities);
       for(var id in bodyEntities) {
         var entity = bodyEntities[id];
         this.addBody(entity);
@@ -3966,18 +3950,35 @@ define([
     },
 
     /**
-      * Add an Entity to the box2d world which will internally be converted to a box2d body and fixture
+      * Add an Entity to the box2d world which will internally be converted to a box2d body and fixture (auto scaled with Box's scale property if the entity hasn't been scaled yet)
       * @name Box#addBody
       * @function
       * @param {Entity} entity Any Entity object
     */
     addBody: function(entity) {
+      if(!entity.alreadyScaled){
+        entity.scaleShape(1 / this.scale);
+        entity.scale = this.scale;
+      }
+
       var bodyDef = new B2BodyDef();
       var fixDef = new B2FixtureDef();
       var i,j,points,vec,vecs;
       fixDef.restitution = entity.restitution;
       fixDef.density = entity.density;
       fixDef.friction = entity.friction;
+
+
+      //these three props are for custom collision filtering
+      if(entity.hasOwnProperty('maskBits')){
+        fixDef.filter.maskBits = entity.maskBits;
+      }
+      if(entity.hasOwnProperty('categoryBits')){
+        fixDef.filter.categoryBits = entity.categoryBits;
+      }
+      if(entity.hasOwnProperty('groupIndex')){
+        fixDef.filter.groupIndex = entity.groupIndex;
+      }
 
       if(entity.staticBody){
         bodyDef.type =  B2Body.b2_staticBody;
@@ -3991,7 +3992,7 @@ define([
       bodyDef.angle = entity.angle;
       bodyDef.linearDamping = entity.linearDamping;
       bodyDef.angularDamping = entity.angularDamping;
-      var body = this.world.CreateBody(bodyDef);
+      var body = this.b2World.CreateBody(bodyDef);
 
 
       if (entity.radius) { //circle
@@ -4183,7 +4184,7 @@ define([
       * @param {Object} vector An object with x and y values in meters per second squared.
     */
     setGravity : function(vector) {
-      this.world.SetGravity(new B2Vec2(vector.x, vector.y));
+      this.b2World.SetGravity(new B2Vec2(vector.x, vector.y));
     },
 
 
@@ -4201,7 +4202,7 @@ define([
         if(this.fixturesMap[id]){
           this.bodiesMap[id].DestroyFixture(this.fixturesMap[id]);
         }
-        this.world.DestroyBody(this.bodiesMap[id]);
+        this.b2World.DestroyBody(this.bodiesMap[id]);
         //delete this.fixturesMap[id];
         delete this.bodiesMap[id];
       }
@@ -4246,30 +4247,45 @@ define([
                                impulse.normalImpulses[0]);
         };
       }
-      this.world.SetContactListener(listener);
+      this.b2World.SetContactListener(listener);
     },
 
     /**
-      * Add a revolute joint between two bodies at the center of the first body.
+      * Remove a joint from the world.
+      *
+      * This must be done outside of the update() iteration, and BEFORE any bodies connected to the joint are removed!
+      *
+      * @name Box#destroyJoint
+      * @function
+      * @param {Number} jointId The id of joint to be destroyed.
+    */
+    destroyJoint : function(jointId) {
+      if(this.jointsMap[jointId]){
+        this.b2World.DestroyJoint(this.jointsMap[jointId]);
+        delete this.jointsMap[jointId];
+      }
+    },
+
+    /**
+      * Add a joint to the box2d world.
       *
       * This must be done outside of the update() iteration!
       *
-      * @name Box#addRevoluteJoint
+      * @name Box#addJoint
       * @function
-      * @param {Number} body1Id The id of the first Entity/Body
-      * @param {Number} body2Id The id of the second Entity/Body
-      * @param {Object} jointAttributes Any box2d jointAttributes you wish to mixin to the joint.
+      * @param {Joint} A joint definition.
+
     */
-    addRevoluteJoint : function(body1Id, body2Id, jointAttributes) {
-      var body1 = this.bodiesMap[body1Id];
-      var body2 = this.bodiesMap[body2Id];
-      var joint = new B2RevoluteJointDef();
-      joint.Initialize(body1, body2, body1.GetWorldCenter());
-      if (jointAttributes) {
-        lang.mixin(joint, jointAttributes);
+    addJoint : function(joint) {
+      if(joint && joint.id && !this.jointsMap[joint.id]){
+        var b2Joint = joint.createB2Joint(this);
+        if(b2Joint){
+          this.jointsMap[joint.id] = b2Joint;
+        }
       }
-      this.world.CreateJoint(joint);
+
     },
+
     beginContact: function(idA, idB){
 
     },
@@ -4686,7 +4702,6 @@ define([
   'frozen/box2d/Box'
 ], function(state, Entities, getGravity, displayJSON, toggleUndo, _, domClass, Box){
 
-  var SCALE = 30;
   var DYNAMIC_COLOR = 'rgba(0,255,0,0.4)';
   var ZONE_COLOR = 'rgba(255,0,0,0.2)';
 
@@ -4726,7 +4741,6 @@ define([
 
       if(!state.entities[obj.id]){
         var ent = new Entities[obj.type](obj);
-        ent.scaleShape(1 / SCALE);
         state.entities[obj.id] = ent;
         if(!obj.zone){
           state.box.addBody(ent);
@@ -4765,24 +4779,6 @@ define([
 },
 'frozen/box2d/RectangleEntity':function(){
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
-/**
  * This Entity represents a Rectangle
  * @name RectangleEntity
  * @class RectangleEntity
@@ -4803,6 +4799,9 @@ define([
 
     draw: dcl.superCall(function(sup){
       return function(ctx, scale){
+        scale = scale || this.scale || 1;
+        var ogLineWidth = ctx.lineWidth;
+        ctx.lineWidth = this.lineWidth;
         ctx.save();
         ctx.translate(this.x * scale, this.y * scale);
         ctx.rotate(this.angle);
@@ -4822,6 +4821,7 @@ define([
           (this.halfHeight*2) * scale
         );
         ctx.restore();
+        ctx.lineWidth = ogLineWidth;
         sup.apply(this, [ctx, scale]);
       };
     }),
@@ -4832,30 +4832,23 @@ define([
         this.halfWidth = this.halfWidth * scale;
         sup.apply(this, [scale]);
       };
-    })
+    }),
+
+    /**
+      * Checks if a given point is contained within this Rectangle.
+      *
+      * @name RectangleEntity#pointInShape
+      * @function
+      * @param {Object} point An object with x and y values.
+    */
+    pointInShape: function(point){
+      return ((point.x >= (this.x - this.halfWidth)) && (point.x <= (this.x + this.halfWidth)) && (point.y >= (this.y - this.halfHeight)) && (point.y <= (this.y + this.halfHeight)));
+    }
   });
 
 });
 },
 'frozen/box2d/Entity':function(){
-/**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
 /**
  * This represents a body and shape in a Box2d world using positions and sizes relative to the Box2d world instance.
  * @name Entity
@@ -4874,6 +4867,7 @@ define([
     id: 0,
     x: 0,
     y: 0,
+    scale: null,
     angle: 0,
     center: null,
     restitution: 0.3,
@@ -4886,7 +4880,13 @@ define([
     staticBody: false,
     color: 'rgba(128,128,128,0.5)',
     strokeColor: '#000',
+    lineWidth: 1,
     hidden: false,
+    /* Used for collision filtering */
+    maskBits: null,
+    categoryBits: null,
+    groupIndex: null,
+
     update: function(state){
       lang.mixin(this, state);
     },
@@ -4899,14 +4899,17 @@ define([
       * @param {Number} scale the scale to draw the entity at
     */
     draw: function(ctx, scale){
-      //black circle in entity's location
-      ctx.fillStyle = 'black';
+      scale = scale || this.scale || 1;
+      var ogLineWidth = ctx.lineWidth;
+      ctx.lineWidth = this.lineWidth;
+      // black circle in entity's location
+      ctx.fillStyle = this.strokeColor;
       ctx.beginPath();
       ctx.arc(this.x * scale, this.y * scale, 4, 0, Math.PI * 2, true);
       ctx.closePath();
       ctx.fill();
 
-      //yellow circle in entity's geometric center
+      // yellow circle in entity's geometric center
       if(this.center){
         ctx.fillStyle = 'yellow';
         ctx.beginPath();
@@ -4914,6 +4917,8 @@ define([
         ctx.closePath();
         ctx.fill();
       }
+
+      ctx.lineWidth = ogLineWidth;
     },
 
     /**
@@ -4925,6 +4930,7 @@ define([
     scaleShape: function(scale){
       this.x = this.x * scale;
       this.y = this.y * scale;
+      this.alreadyScaled = true;
     }
 
   });
@@ -4932,24 +4938,6 @@ define([
 });
 },
 'frozen/box2d/PolygonEntity':function(){
-/**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
 /**
  * This Entity represents a polygon which is build from an array of points.
  * @name PolygonEntity
@@ -4961,8 +4949,10 @@ define([
   'dcl',
   'dcl/bases/Mixer',
   './Entity',
-  '../utils' // TODO: specific util, not whole module
-], function(dcl, Mixer, Entity, utils){
+  '../utils/scalePoints',
+  '../utils/pointInPolygon',
+  '../utils/translatePoints'
+], function(dcl, Mixer, Entity, scalePoints, pointInPolygon, translatePoints){
 
   'use strict';
 
@@ -4970,11 +4960,15 @@ define([
     points: [],
     draw: dcl.superCall(function(sup){
       return function(ctx, scale){
+        scale = scale || this.scale || 1;
+        var ogLineWidth = ctx.lineWidth;
+        ctx.lineWidth = this.lineWidth;
         ctx.save();
         ctx.translate(this.x * scale, this.y * scale);
         ctx.rotate(this.angle);
         ctx.translate(-(this.x) * scale, -(this.y) * scale);
         ctx.fillStyle = this.color;
+        ctx.strokeStyle = this.strokeColor;
 
         ctx.beginPath();
         ctx.moveTo((this.x + this.points[0].x) * scale, (this.y + this.points[0].y) * scale);
@@ -4987,265 +4981,29 @@ define([
         ctx.stroke();
 
         ctx.restore();
+        ctx.lineWidth = ogLineWidth;
         sup.apply(this, [ctx, scale]);
       };
     }),
 
     scaleShape: dcl.superCall(function(sup){
       return function(scale){
-        this.points = utils.scalePoints(this.points, scale);
+        this.points = scalePoints(this.points, scale);
         sup.apply(this, [scale]);
       };
-    })
+    }),
+
+    /**
+      * Checks if a given point is contained within this Polygon.
+      *
+      * @name PolygonEntity#pointInShape
+      * @function
+      * @param {Object} point An object with x and y values.
+    */
+    pointInShape: function(point){
+      return pointInPolygon(point, translatePoints(this.points, this));
+    }
   });
-
-});
-},
-'frozen/utils':function(){
-define([
-  './utils/averagePoints',
-  './utils/degreesToRadians',
-  './utils/radiansToDegrees',
-  './utils/pointInPolygon',
-  './utils/distance',
-  './utils/degreesFromCenter',
-  './utils/radiansFromCenter',
-  './utils/scalePoints',
-  './utils/translatePoints'
-], function(averagePoints, degreesToRadians, radiansToDegrees, pointInPolygon, distance, degreesFromCenter, radiansFromCenter, scalePoints, translatePoints){
-
-  'use strict';
-
- /**
- * Math utility libraries
- * @name utils
- */
-  return {
-
-    /**
-      * Gets the average point value in an array of points.
-      * @name utils#averagePoints
-      * @function
-      * @param {Array} points
-      *
-    */
-    averagePoints: averagePoints,
-
-    /**
-      * Convert degrees to raidans
-      * @name utils#degreesToRadians
-      * @function
-      * @param {Number} degrees
-      *
-    */
-    degreesToRadians: degreesToRadians,
-
-    /**
-      * Convert radians to degrees
-      * @name utils#radiansToDegrees
-      * @function
-      * @param {Number} radians
-      *
-    */
-    radiansToDegrees: radiansToDegrees,
-
-    /**
-      * Checks if a point is in a polygon
-      * @name utils#pointInPolygon
-      * @function
-      * @param {Object} point Object with an x and y value
-      * @param {Array} polygon Array of points
-      *
-    */
-    pointInPolygon: pointInPolygon,
-
-    /**
-      * Returns the distance between 2 points
-      * @name utils#distance
-      * @function
-      * @param {Object} point1 Object with an x and y value
-      * @param {Object} point2 Object with an x and y value
-      *
-    */
-    distance: distance,
-
-    /**
-      * Degrees a point is offset from a center point
-      * @name utils#degreesFromCenter
-      * @function
-      * @param {Object} center Object with an x and y value
-      * @param {Object} point Object with an x and y value
-      *
-    */
-    degreesFromCenter: degreesFromCenter,
-
-    /**
-      * Radians a point is offset from a center point
-      * @name utils#radiansFromCenter
-      * @function
-      * @param {Object} center Object with an x and y value
-      * @param {Object} point Object with an x and y value
-      *
-    */
-    radiansFromCenter: radiansFromCenter,
-
-    /**
-      * Scale a point or array of points.
-      * @name utils#scalePoints
-      * @function
-      * @param {Object|Array} points A point or array of points
-      * @param {Object} scale Object with an x and y value
-      *
-    */
-    scalePoints: scalePoints,
-
-    /**
-      * Translate a point or array of points
-      * @name utils#translatePoints
-      * @function
-      * @param {Object|Array} points A point or array of points
-      * @param {Object} offset Object with an x and y value
-      *
-    */
-    translatePoints: translatePoints
-  };
-});
-},
-'frozen/utils/averagePoints':function(){
-define([],
- function(){
-
-  'use strict';
-
-  var averagePoints = function(points){
-    var retVal = {x: 0, y: 0};
-    points.forEach(function(point){
-      retVal.x+= point.x;
-      retVal.y+= point.y;
-    });
-    retVal.x = retVal.x / points.length;
-    retVal.y = retVal.y / points.length;
-    return retVal;
-  };
-
-  return averagePoints;
-
-});
-},
-'frozen/utils/degreesToRadians':function(){
-define(function(){
-
-  'use strict';
-
-  var radConst = Math.PI / 180.0;
-
-  return function(degrees){
-    return degrees * radConst;
-  };
-
-});
-},
-'frozen/utils/radiansToDegrees':function(){
-define(function(){
-
-  'use strict';
-
-  var degConst = 180.0 / Math.PI;
-
-  return function(radians){
-    return radians * degConst;
-  };
-
-});
-},
-'frozen/utils/pointInPolygon':function(){
-define(function(){
-
-  'use strict';
-
-  // TODO: rewrite this
-  return function(pt, polygon){
-    var poly = polygon.points || polygon;
-    for(var c = false, i = -1, l = poly.length, j = l - 1; ++i < l; j = i){
-      ((poly[i].y <= pt.y && pt.y < poly[j].y) || (poly[j].y <= pt.y && pt.y < poly[i].y)) && (pt.x < (poly[j].x - poly[i].x) * (pt.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x) && (c = !c);
-    }
-    return c;
-  };
-});
-},
-'frozen/utils/distance':function(){
-define(function(){
-
-  'use strict';
-
-  return function(p1, p2){
-    return Math.sqrt( ((p2.x - p1.x) * (p2.x - p1.x)) + ((p2.y - p1.y) * (p2.y - p1.y)) );
-  };
-
-});
-},
-'frozen/utils/degreesFromCenter':function(){
-define([
-  './radiansToDegrees',
-  './radiansFromCenter'
-], function(radiansToDegrees, radiansFromCenter){
-
-  'use strict';
-
-  return function(center, pt){
-    return radiansToDegrees(radiansFromCenter(center, pt));
-  };
-
-});
-},
-'frozen/utils/radiansFromCenter':function(){
-define(function(){
-
-  'use strict';
-
-  var origin = {x: 0.0, y: 0.0};
-  return function(center, pt){
-
-    //if null or zero is passed in for center, we'll use the origin
-    center = center || origin;
-
-    //same point
-    if((center.x === pt.x) && (center.y === pt.y)){
-      return 0;
-    }else if(center.x === pt.x){
-      if(center.y > pt.y){
-        return 0;
-      }else{
-        return Math.PI;
-      }
-    }else if(center.y === pt.y){
-      if(center.x > pt.x){
-        return 1.5 * Math.PI;
-      }else{
-        return Math.PI / 2;
-      }
-    }else if((center.x < pt.x) && (center.y > pt.y)){
-      //quadrant 1
-      //console.log('quad1',center.x,center.y,pt.x,pt.y,'o',pt.x - center.x,'a',pt.y - center.y);
-      return Math.atan((pt.x - center.x)/(center.y - pt.y));
-    }
-    else if((center.x < pt.x) && (center.y < pt.y)){
-      //quadrant 2
-      //console.log('quad2',center.x,center.y,pt.x,pt.y);
-      return Math.PI / 2 + Math.atan((pt.y - center.y)/(pt.x - center.x));
-    }
-    else if((center.x > pt.x) && (center.y < pt.y)){
-      //quadrant 3
-      //console.log('quad3',center.x,center.y,pt.x,pt.y);
-      return Math.PI + Math.atan((center.x - pt.x)/(pt.y - center.y));
-    }
-    else{
-      //quadrant 4
-      //console.log('quad4',center.x,center.y,pt.x,pt.y);
-      return 1.5 * Math.PI + Math.atan((center.y - pt.y)/(center.x - pt.x));
-    }
-
-  };
 
 });
 },
@@ -5275,6 +5033,45 @@ define([
 
   return scalePoints;
 
+});
+},
+'frozen/utils/pointInPolygon':function(){
+define(function(){
+
+  'use strict';
+
+  // Using Ray-Casting formula based on
+  // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+  // and https://github.com/substack/point-in-polygon/
+  // Re-written for most readability and for use with point objects instead of arrays
+
+  function pointInPoly(point, polygon){
+    if(!point || !polygon){
+      return false;
+    }
+
+    var poly = polygon.points || polygon;
+
+    var insidePoly = false;
+    var j = poly.length - 1;
+
+    for(var i = 0; i < poly.length; j = i++){
+      var xi = poly[i].x;
+      var yi = poly[i].y;
+      var xj = poly[j].x;
+      var yj = poly[j].y;
+
+      if(yi > point.y !== yj > point.y){
+        if(point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi){
+          insidePoly = !insidePoly;
+        }
+      }
+    }
+
+    return insidePoly;
+  }
+
+  return pointInPoly;
 });
 },
 'frozen/utils/translatePoints':function(){
@@ -5312,24 +5109,6 @@ define([
 },
 'frozen/box2d/CircleEntity':function(){
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
-/**
  * This represents a Circly body and shape in a Box2d world
  * @name CircleEntity
  * @class CircleEntity
@@ -5339,8 +5118,9 @@ limitations under the License.
 define([
   'dcl',
   'dcl/bases/Mixer',
-  './Entity'
-], function(dcl, Mixer, Entity){
+  './Entity',
+  '../utils/distance'
+], function(dcl, Mixer, Entity, distance){
 
   'use strict';
 
@@ -5354,6 +5134,9 @@ define([
     */
     draw: dcl.superCall(function(sup){
       return function(ctx, scale){
+        scale = scale || this.scale || 1;
+        var ogLineWidth = ctx.lineWidth;
+        ctx.lineWidth = this.lineWidth;
         ctx.fillStyle = this.color;
         ctx.strokeStyle = this.strokeColor;
         ctx.beginPath();
@@ -5374,6 +5157,7 @@ define([
           ctx.stroke();
           ctx.restore();
         }
+        ctx.lineWidth = ogLineWidth;
         sup.apply(this, [ctx, scale]);
       };
     }),
@@ -5383,8 +5167,30 @@ define([
         this.radius = this.radius * scale;
         sup.apply(this, [scale]);
       };
-    })
+    }),
+
+    /**
+      * Checks if a given point is contained within this Circle.
+      *
+      * @name CircelEntity#pointInShape
+      * @function
+      * @param {Object} point An object with x and y values.
+    */
+    pointInShape: function(point){
+      return (distance(point, this) <= this.radius);
+    }
   });
+
+});
+},
+'frozen/utils/distance':function(){
+define(function(){
+
+  'use strict';
+
+  return function(p1, p2){
+    return Math.sqrt( ((p2.x - p1.x) * (p2.x - p1.x)) + ((p2.y - p1.y) * (p2.y - p1.y)) );
+  };
 
 });
 },
@@ -9713,7 +9519,7 @@ define([
 
 },
 'dojo/dom-class':function(){
-define("dojo/dom-class", ["./_base/lang", "./_base/array", "./dom"], function(lang, array, dom){
+define(["./_base/lang", "./_base/array", "./dom"], function(lang, array, dom){
 	// module:
 	//		dojo/dom-class
 
@@ -10546,6 +10352,255 @@ define(function(){
 
 });
 },
+'frozen/utils':function(){
+define([
+  './utils/averagePoints',
+  './utils/degreesToRadians',
+  './utils/radiansToDegrees',
+  './utils/pointInPolygon',
+  './utils/distance',
+  './utils/degreesFromCenter',
+  './utils/radiansFromCenter',
+  './utils/scalePoints',
+  './utils/translatePoints',
+  './utils/insideCanvas'
+], function(averagePoints, degreesToRadians, radiansToDegrees, pointInPolygon, distance, degreesFromCenter, radiansFromCenter, scalePoints, translatePoints, insideCanvas){
+
+  'use strict';
+
+ /**
+ * Math utility libraries
+ * @name utils
+ */
+  return {
+
+    /**
+      * Gets the average point value in an array of points.
+      * @name utils#averagePoints
+      * @function
+      * @param {Array} points
+      *
+    */
+    averagePoints: averagePoints,
+
+    /**
+      * Convert degrees to raidans
+      * @name utils#degreesToRadians
+      * @function
+      * @param {Number} degrees
+      *
+    */
+    degreesToRadians: degreesToRadians,
+
+    /**
+      * Convert radians to degrees
+      * @name utils#radiansToDegrees
+      * @function
+      * @param {Number} radians
+      *
+    */
+    radiansToDegrees: radiansToDegrees,
+
+    /**
+      * Checks if a point is in a polygon
+      * @name utils#pointInPolygon
+      * @function
+      * @param {Object} point Object with an x and y value
+      * @param {Array} polygon Array of points
+      *
+    */
+    pointInPolygon: pointInPolygon,
+
+    /**
+      * Returns the distance between 2 points
+      * @name utils#distance
+      * @function
+      * @param {Object} point1 Object with an x and y value
+      * @param {Object} point2 Object with an x and y value
+      *
+    */
+    distance: distance,
+
+    /**
+      * Degrees a point is offset from a center point
+      * @name utils#degreesFromCenter
+      * @function
+      * @param {Object} center Object with an x and y value
+      * @param {Object} point Object with an x and y value
+      *
+    */
+    degreesFromCenter: degreesFromCenter,
+
+    /**
+      * Radians a point is offset from a center point
+      * @name utils#radiansFromCenter
+      * @function
+      * @param {Object} center Object with an x and y value
+      * @param {Object} point Object with an x and y value
+      *
+    */
+    radiansFromCenter: radiansFromCenter,
+
+    /**
+      * Scale a point or array of points.
+      * @name utils#scalePoints
+      * @function
+      * @param {Object|Array} points A point or array of points
+      * @param {Object} scale Object with an x and y value
+      *
+    */
+    scalePoints: scalePoints,
+
+    /**
+      * Translate a point or array of points
+      * @name utils#translatePoints
+      * @function
+      * @param {Object|Array} points A point or array of points
+      * @param {Object} offset Object with an x and y value
+      *
+    */
+    translatePoints: translatePoints,
+
+    /**
+     * Check whether a point is inside a canvas
+     * @name utils#insideCanvas
+     * @function
+     * @param {Object} point A point to test
+     * @param {Object} canvas Object with height and width properties
+     * @return {Boolean} True if inside canvas else false
+     */
+    insideCanvas: insideCanvas
+  };
+});
+},
+'frozen/utils/averagePoints':function(){
+define(function(){
+
+  'use strict';
+
+  var averagePoints = function(points){
+    var retVal = {x: 0, y: 0};
+    points.forEach(function(point){
+      retVal.x+= point.x;
+      retVal.y+= point.y;
+    });
+    retVal.x = retVal.x / points.length;
+    retVal.y = retVal.y / points.length;
+    return retVal;
+  };
+
+  return averagePoints;
+
+});
+},
+'frozen/utils/degreesToRadians':function(){
+define(function(){
+
+  'use strict';
+
+  var radConst = Math.PI / 180.0;
+
+  return function(degrees){
+    return degrees * radConst;
+  };
+
+});
+},
+'frozen/utils/radiansToDegrees':function(){
+define(function(){
+
+  'use strict';
+
+  var degConst = 180.0 / Math.PI;
+
+  return function(radians){
+    return radians * degConst;
+  };
+
+});
+},
+'frozen/utils/degreesFromCenter':function(){
+define([
+  './radiansToDegrees',
+  './radiansFromCenter'
+], function(radiansToDegrees, radiansFromCenter){
+
+  'use strict';
+
+  return function(center, pt){
+    return radiansToDegrees(radiansFromCenter(center, pt));
+  };
+
+});
+},
+'frozen/utils/radiansFromCenter':function(){
+define(function(){
+
+  'use strict';
+
+  var origin = {x: 0.0, y: 0.0};
+  return function(center, pt){
+
+    //if null or zero is passed in for center, we'll use the origin
+    center = center || origin;
+
+    //same point
+    if((center.x === pt.x) && (center.y === pt.y)){
+      return 0;
+    }else if(center.x === pt.x){
+      if(center.y > pt.y){
+        return 0;
+      }else{
+        return Math.PI;
+      }
+    }else if(center.y === pt.y){
+      if(center.x > pt.x){
+        return 1.5 * Math.PI;
+      }else{
+        return Math.PI / 2;
+      }
+    }else if((center.x < pt.x) && (center.y > pt.y)){
+      //quadrant 1
+      //console.log('quad1',center.x,center.y,pt.x,pt.y,'o',pt.x - center.x,'a',pt.y - center.y);
+      return Math.atan((pt.x - center.x)/(center.y - pt.y));
+    }
+    else if((center.x < pt.x) && (center.y < pt.y)){
+      //quadrant 2
+      //console.log('quad2',center.x,center.y,pt.x,pt.y);
+      return Math.PI / 2 + Math.atan((pt.y - center.y)/(pt.x - center.x));
+    }
+    else if((center.x > pt.x) && (center.y < pt.y)){
+      //quadrant 3
+      //console.log('quad3',center.x,center.y,pt.x,pt.y);
+      return Math.PI + Math.atan((center.x - pt.x)/(pt.y - center.y));
+    }
+    else{
+      //quadrant 4
+      //console.log('quad4',center.x,center.y,pt.x,pt.y);
+      return 1.5 * Math.PI + Math.atan((center.y - pt.y)/(center.x - pt.x));
+    }
+
+  };
+
+});
+},
+'frozen/utils/insideCanvas':function(){
+define(function(){
+
+  'use strict';
+
+  function insideCanvas(pt, canvas){
+    if((pt.x < 0) || (pt.x >  canvas.width) || (pt.y < 0) || (pt.y > canvas.height)){
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  return insideCanvas;
+
+});
+},
 'game/createJSON/circle':function(){
 define([
   '../state',
@@ -10583,8 +10638,8 @@ define([
       var rect = {
         x: ((pts[1].x - pts[0].x)/2 + pts[0].x),
         y: ((pts[1].y - pts[0].y)/2 + pts[0].y),
-        halfWidth: Math.abs((pts[1].x - pts[0].x) / 2),
-        halfHeight: Math.abs((pts[1].y - pts[0].y) / 2)
+        halfWidth: Math.abs((pts[1].x - pts[0].x) / 2) || 0.5,
+        halfHeight: Math.abs((pts[1].y - pts[0].y) / 2) || 0.5
       };
       rect.staticBody = state.toolType === 'static';
       rect.zone = state.toolType === 'zone';
@@ -10654,11 +10709,7 @@ define([
   'lodash'
 ], function(drawShape, state, _){
 
-  var SCALE = 30;
-
   return function(ctx){
-    ctx.lineWidth = 1;
-
     if(state.backImg){
       ctx.drawImage(state.backImg, 0, 0, this.canvas.width, state.backImg.height);
     } else {
@@ -10667,20 +10718,15 @@ define([
 
     _.forEach(state.entities, function(entity){
       if(!entity.staticBody || state.showStatic){
-        entity.draw(ctx, SCALE);
+        entity.draw(ctx);
       }
     }, this);
-
-    var lineWidth = ctx.lineWidth;
-    ctx.lineWidth = 1;
 
     if(!state.geometries.length){
       return;
     }
 
     drawShape[state.tool](ctx, this.inputManager, state.geometries);
-
-    ctx.lineWidth = lineWidth;
   };
 
 });
@@ -10785,22 +10831,23 @@ define([
 },
 'frozen/GameCore':function(){
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
+ * The GameCore class provides the base to build games on.
+ * @name GameCore
+ * @class GameCore
+ * @example
+ * var myGame = new GameCore({
+ *   canvasId: 'myCanvas',
+ *   update: function(millis){
+ *     // do updating of game state
+ *   },
+ *   draw: function(context){
+ *     // do drawing of the game
+ *   }
+ * });
+ *
+ * //start the game
+ * myGame.run();
+ */
 
 define([
   'dcl',
@@ -10814,25 +10861,6 @@ define([
 
   'use strict';
 
- /**
- * The GameCore class provides the base to build games on.
- * @name GameCore
- * @class GameCore
- * @example
-var myGame = new GameCore({
-  canvasId: 'myCanvas',
-  update: function(millis){
-    // do updating of game state
-  },
-  draw: function(context){
-    // do drawing of the game
-  }
-});
-
-//start the game
-myGame.run();
-
- */
 
   return dcl(Mixer, {
     statics: {
@@ -10850,21 +10878,43 @@ myGame.run();
     loadingBackground: '#FFF',
     gameAreaId: null,
     canvasPercentage: 0,
+
     /**
-      * Signals the game loop that it's time to quit
-      * @name GameCore#stop
-      * @function
-      *
-    */
-    stop: function() {
-        this.isRunning = false;
+     * Sets the height on your GameCore instance and on your canvas reference
+     * @name GameCore#setHeight
+     * @function
+     * @param {Number} newHeight The new height desired
+     */
+    setHeight: function(newHeight){
+      this.height = newHeight;
+      this.canvas.height = newHeight;
     },
+
     /**
-      * Launches the game.
-      * @name GameCore#run
-      * @function
-      *
-    */
+     * Sets the width on your GameCore instance and on your canvas reference
+     * @name GameCore#setWidth
+     * @function
+     * @param {Number} newWidth The new width desired
+     */
+    setWidth: function(newWidth){
+      this.width = newWidth;
+      this.canvas.width = newWidth;
+    },
+
+    /**
+     * Signals the game loop that it's time to quit
+     * @name GameCore#stop
+     * @function
+     */
+    stop: function() {
+      this.isRunning = false;
+    },
+
+    /**
+     * Launches the game.
+     * @name GameCore#run
+     * @function
+     */
     run: function() {
       if(!this.isRunning){
         this.init();
@@ -10873,20 +10923,20 @@ myGame.run();
         this.launchLoop();
       }
     },
+
     /**
-      * Can be overidden in GameCore subclasses to load images and sounds
-      * @name GameCore#loadResources
-      * @function
-      * @param {ResourceManager} resourceManager
-      *
-    */
+     * Can be overidden in GameCore subclasses to load images and sounds
+     * @name GameCore#loadResources
+     * @function
+     * @param {ResourceManager} resourceManager
+     */
     loadResources: function(resourceManager){},
+
     /**
-      * Sets the screen mode and initiates and objects.
-      * @name GameCore#init
-      * @function
-      *
-    */
+     * Sets the screen mode and initiates and objects.
+     * @name GameCore#init
+     * @function
+     */
     init: function() {
       if(!this.canvas){
         this.canvas = dom.byId(this.canvasId);
@@ -10902,21 +10952,12 @@ myGame.run();
         alert('Sorry, your browser does not support a ' + this.contextType + ' drawing surface on canvas.  I recommend any browser but Internet Explorer');
         return;
       }
-      //try using game object's dimensions, or set dimensions to canvas if none are specified
-      if(this.height){
-        this.canvas.height = this.height;
-      } else {
-        this.height = this.canvas.height;
-      }
-      if(this.width){
-        this.canvas.width = this.width;
-      } else {
-        this.width = this.canvas.width;
-      }
 
+      this.setHeight(this.height || this.canvas.height);
+      this.setWidth(this.width || this.canvas.width);
 
       if(!this.inputManager){
-        //hande resizing if gameArea and canvasPercentage are specified
+        //handle resizing if gameArea and canvasPercentage are specified
         if(this.gameAreaId && this.canvasPercentage){
           this.inputManager = new InputManager({
             canvas: this.canvas,
@@ -10925,10 +10966,9 @@ myGame.run();
           });
         }else{
           this.inputManager = new InputManager({
-          canvas: this.canvas
-        });
+            canvas: this.canvas
+          });
         }
-
       }
 
       this.inputManager.resize();
@@ -10939,32 +10979,30 @@ myGame.run();
       this.loadResources(this.resourceManager);
 
       this.isRunning = true;
-
-
     },
+
     /**
-      * Can be overidden in the subclasses to map user input to actions
-      * @name GameCore#initInput
-      * @function
-      * @param {InputManager} inputManager
-      *
-    */
+     * Can be overidden in the subclasses to map user input to actions
+     * @name GameCore#initInput
+     * @function
+     * @param {InputManager} inputManager
+     */
     initInput: function(inputManager) {},
+
     /**
-      * Can be overidden in the subclasses to deal with user input before updating the game state
-      * @name GameCore#handleInput
-      * @function
-      * @param {InputManager} inputManager
-      * @param {Number} elapsedTime elapsed time in milliseconds
-      *
-    */
+     * Can be overidden in the subclasses to deal with user input before updating the game state
+     * @name GameCore#handleInput
+     * @function
+     * @param {InputManager} inputManager
+     * @param {Number} elapsedTime elapsed time in milliseconds
+     */
     handleInput: function(inputManager,elapsedTime) {},
+
     /**
-      * Runs through the game loop until stop() is called.
-      * @name GameCore#gameLoop
-      * @function
-      *
-    */
+     * Runs through the game loop until stop() is called.
+     * @name GameCore#gameLoop
+     * @function
+     */
     gameLoop: function() {
       this.currTime = new Date().getTime();
       this.elapsedTime = Math.min(this.currTime - this.prevTime, this.maxStep);
@@ -10986,12 +11024,12 @@ myGame.run();
         this.context.restore();
       }
     },
+
     /**
-      * Launches the game loop.
-      * @name GameCore#launchLoop
-      * @function
-      *
-    */
+     * Launches the game loop.
+     * @name GameCore#launchLoop
+     * @function
+     */
     launchLoop: function(){
       this.elapsedTime = 0;
       var startTime = Date.now();
@@ -11002,65 +11040,66 @@ myGame.run();
       this.loopRunner = lang.hitch(this, this.loopRunner);
       window.requestAnimationFrame(this.loopRunner);
     },
+
     loopRunner: function(){
       this.gameLoop();
       window.requestAnimationFrame(this.loopRunner);
     },
+
     /**
-      * Should be overridden to update the state of the game/animation based on the amount of elapsed time that has passed.
-      * @name GameCore#update
-      * @function
-      * @param {Number} elapsedTime elapsed time in milliseconds
-      *
-    */
+     * Should be overridden to update the state of the game/animation based on the amount of elapsed time that has passed.
+     * @name GameCore#update
+     * @function
+     * @param {Number} elapsedTime elapsed time in milliseconds
+     */
     update: function(elapsedTime) {},
+
     /**
-      * Can be overridden to update the state of the game/animation while a custom loading screen is displayed.
-      * @name GameCore#updateLoadingScreen
-      * @function
-      * @param {Number} elapsedTime elapsed time in milliseconds
-      *
-    */
+     * Can be overridden to update the state of the game/animation while a custom loading screen is displayed.
+     * @name GameCore#updateLoadingScreen
+     * @function
+     * @param {Number} elapsedTime elapsed time in milliseconds
+     */
     updateLoadingScreen: function(elapsedTime) {},
+
     /**
-      * Draws to the screen. Subclasses or instances must override this method to paint items to the screen.
-      * @name GameCore#draw
-      * @function
-      * @param {Context} context An HTML5 canvas drawing context.
-      *
-    */
+     * Draws to the screen. Subclasses or instances must override this method to paint items to the screen.
+     * @name GameCore#draw
+     * @function
+     * @param {Context} context An HTML5 canvas drawing context.
+     */
     draw: function(context){
       if(this.contextType === '2d'){
         context.font = "14px sans-serif";
         context.fillText("This game does not have its own draw function!", 10, 50);
       }
     },
+
     /**
-      * Draws the progress of the resource manger to the screen while loading.
-      * Subclasses or instances may override for custom loading animations.
-      * @name GameCore#drawLoadingScreen
-      * @function
-      * @param {Context} context An HTML5 canvas drawing context.
-      *
-    */
+     * Draws the progress of the resource manger to the screen while loading.
+     * Subclasses or instances may override for custom loading animations.
+     * @name GameCore#drawLoadingScreen
+     * @function
+     * @param {Context} context An HTML5 canvas drawing context.
+     */
     drawLoadingScreen: function(context){
       if(this.resourceManager && (this.contextType === '2d')){
-        context.fillStyle   = this.loadingBackground;
+        context.fillStyle = this.loadingBackground;
         context.fillRect(0,0, this.width,this.height);
 
-        context.fillStyle   = this.loadingForeground;
+        context.fillStyle = this.loadingForeground;
         context.strokeStyle = this.loadingForeground;
 
-        var textPxSize =  Math.floor(this.height/12);
+        var textPxSize = Math.floor(this.height/12);
 
         context.font = "bold " + textPxSize + "px sans-serif";
 
         context.fillText("Loading... " + this.resourceManager.getPercentComplete() + "%", this.width * 0.1, this.height * 0.55);
 
-        context.strokeRect(this.width * 0.1, this.height * 0.7,this.width * 0.8, this.height * 0.1);
-        context.fillRect(this.width * 0.1, this.height * 0.7,(this.width * 0.8) * this.resourceManager.getPercentComplete()/100, this.height * 0.1);
+        context.strokeRect(this.width * 0.1, this.height * 0.7, this.width * 0.8, this.height * 0.1);
+        context.fillRect(this.width * 0.1, this.height * 0.7, (this.width * 0.8) * this.resourceManager.getPercentComplete()/100, this.height * 0.1);
 
-        context.lineWidth   = 4;
+        context.lineWidth = 4;
       }
     }
   });
@@ -11070,39 +11109,24 @@ myGame.run();
 },
 'frozen/InputManager':function(){
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
- /**
  * The InputManager handles DOM events for use in games.
  * @name InputManager
  * @class InputManager
  */
+
 define([
   './GameAction',
   './MouseAction',
+  './utils/insideCanvas',
   'dcl',
   'dcl/bases/Mixer',
+  'dojo/has',
   'dojo/on',
   'dojo/dom-style',
   'dojo/dom-geometry',
   'dojo/_base/lang',
   'dojo/domReady!'
-], function(GameAction, MouseAction, dcl, Mixer, on, domStyle, domGeom, lang){
+], function(GameAction, MouseAction, insideCanvas, dcl, Mixer, has, on, domStyle, domGeom, lang){
 
   'use strict';
 
@@ -11122,14 +11146,14 @@ define([
         on(document, 'keyup', lang.hitch(this, "keyReleased"));
       }
 
-      if(this.handleMouse){
-        on(this.canvas, 'mousedown', lang.hitch(this, "mouseDown"));
+      if(this.handleMouse && !has('touch')){
+        on(document, 'mousedown', lang.hitch(this, "mouseDown"));
         on(document, 'mousemove', lang.hitch(this, "mouseMove"));
         on(document, 'mouseup', lang.hitch(this, "mouseUp"));
       }
 
-      if(this.handleTouch){
-        on(this.canvas, 'touchstart', lang.hitch(this, "touchStart"));
+      if(this.handleTouch && has('touch')){
+        on(document, 'touchstart', lang.hitch(this, "touchStart"));
         on(document, 'touchmove', lang.hitch(this, "touchMove"));
         on(document, 'touchend', lang.hitch(this, "touchEnd"));
       }
@@ -11193,25 +11217,41 @@ define([
       this.mouseAction.endPosition = this.getMouseLoc(e);
     },
     mouseDown: function(e){
-      this.mouseAction.press();
-      this.mouseAction.startPosition = this.getMouseLoc(e);
-      this.mouseAction.position = this.mouseAction.startPosition;
+      var currentPoint = this.getMouseLoc(e);
+      this.mouseAction.endPosition = null;
+      this.mouseAction.insideCanvas = insideCanvas(currentPoint, this.canvas);
+      if(this.mouseAction.insideCanvas){
+        this.mouseAction.press();
+        this.mouseAction.startPosition = currentPoint;
+        this.mouseAction.position = currentPoint;
+      } else {
+        this.mouseAction.startPosition = null;
+      }
     },
     mouseMove: function(e){
       this.mouseAction.position = this.getMouseLoc(e);
     },
     touchStart: function(e){
-      this.touchAction.press();
-      this.touchAction.startPosition = this.getMouseLoc(e.changedTouches[0]);
-      this.touchAction.position = this.touchAction.startPosition;
+      var currentPoint = this.getMouseLoc(e.changedTouches[0]);
+      this.touchAction.endPosition = null;
+      this.touchAction.insideCanvas = insideCanvas(currentPoint, this.canvas);
+      if(this.touchAction.insideCanvas){
+        this.touchAction.press();
+        this.touchAction.startPosition = currentPoint;
+        this.touchAction.position = currentPoint;
+      } else {
+        this.touchAction.startPosition = null;
+      }
     },
     touchEnd: function(e){
       this.touchAction.release();
-      this.mouseAction.endPosition = this.getMouseLoc(e);
+      this.touchAction.endPosition = this.getMouseLoc(e.changedTouches[0]);
     },
     touchMove: function(e){
       this.touchAction.position = this.getMouseLoc(e.changedTouches[0]);
-      e.preventDefault();
+      if(this.touchAction.startPosition){
+        e.preventDefault();
+      }
     },
     getKeyAction: function(e) {
       if (this.keyActions.length) {
@@ -11300,24 +11340,6 @@ define([
 },
 'frozen/GameAction':function(){
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
- /**
  * The GameAction handles DOM events for use in games.
  * @name GameAction
  * @class GameAction
@@ -11461,29 +11483,12 @@ define([
 },
 'frozen/MouseAction':function(){
 /**
-
- Copyright 2012 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
- /**
  * A GameAction that handles Mouse events
  * @name MouseAction
  * @class MouseAction
  * @extends {GameAction}
  */
+
 define([
   'dcl',
   'dcl/bases/Mixer',
@@ -11501,7 +11506,7 @@ define([
 });
 },
 'dojo/on':function(){
-define("dojo/on", ["require", "./_base/kernel", "./has"], function(aspect, dojo, has){
+define(["require", "./_base/kernel", "./has"], function(aspect, dojo, has){
 
 	"use strict";
 	if( 1 ){ // check to make sure we are in a browser, this module should work anywhere
@@ -12018,7 +12023,7 @@ define("dojo/on", ["require", "./_base/kernel", "./has"], function(aspect, dojo,
 
 },
 'dojo/dom-style':function(){
-define(["./sniff", "./dom"], function(has, dom){
+define("dojo/dom-style", ["./sniff", "./dom"], function(has, dom){
 	// module:
 	//		dojo/dom-style
 
@@ -12327,7 +12332,7 @@ define(["./sniff", "./dom"], function(has, dom){
 
 },
 'dojo/dom-geometry':function(){
-define(["./sniff", "./_base/window","./dom", "./dom-style"],
+define("dojo/dom-geometry", ["./sniff", "./_base/window","./dom", "./dom-style"],
 		function(has, win, dom, style){
 	// module:
 	//		dojo/dom-geometry
@@ -12936,33 +12941,18 @@ define(["./sniff", "./_base/window","./dom", "./dom-style"],
 },
 'frozen/ResourceManager':function(){
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
- /**
  * The ResourceManager handles DOM events for use in games.
  * @name ResourceManager
  * @class ResourceManager
  */
+
 define([
+  './sounds/Sound!',
   'dcl',
   'dcl/bases/Mixer',
-  './shims/AudioContext'
-], function(dcl, Mixer){
+  'dojo/_base/lang',
+  'dojo/on'
+], function(Sound, dcl, Mixer, lang, on){
 
   'use strict';
 
@@ -12974,102 +12964,108 @@ define([
     return joinedPath.replace(/\/{2,}/g, '/');
   }
 
-  var audioContext = null;
-  if(window.AudioContext){
-    audioContext = new window.AudioContext();
-  }else{
-    console.log('WebAudio not supported');
-  }
-
   return dcl(Mixer, {
     imageCount: 0,
     loadedImages: 0,
     allLoaded: false,
     imageDir: null,
     soundDir: null,
-    audioContext: audioContext,
     resourceList: {},
 
     /**
-      * Loads an image, and tracks if it has finished loading
+      * Loads an image (or a collection of images), and tracks if it has finished loading
       * @name ResourceManager#loadImage
       * @function
-      * @param {String} filename Filename of the image relative the Game's HTML page.
+      * @param {String|Array|Object} files Filename of the image relative the Game's HTML page.
+      * @returns {Image|Array|Object} Return type based on argument: Image if String, Array of Images if Array, or Object of key-Image pairs if Object
       *
     */
-    loadImage: function(filename){
-      filename = normalizePath(this.imageDir, filename);
-
-      //if we already have the image, just return it
-      if(this.resourceList[filename]){
-        return this.resourceList[filename].img;
+    loadImage: function(files){
+      var singleFile = false;
+      // Normalize arguments
+      if(!Array.isArray(files)){
+        if(typeof files === 'string'){
+          singleFile = true;
+          files = [files];
+        } else if(typeof files !== 'object'){
+          return;
+        }
       }
 
-      this.allLoaded = false;
+      for(var key in files){
+        if(!files.hasOwnProperty(key)){
+          continue;
+        }
+        var filename = normalizePath(this.imageDir, files[key]);
 
-      var img = new Image();
-      var imgWrapper = {
-        name: filename,
-        img: img,
-        complete: false
-      };
+        //if we already have the image, just return it
+        if(this.resourceList[filename]){
+          files[key] = this.resourceList[filename].img;
+          continue;
+        }
 
-      img.onload = function(){
-        imgWrapper.complete = true;
-      };
-      img.src = filename;
+        this.allLoaded = false;
 
-      this.resourceList[filename] = imgWrapper;
-      return img;
+        var img = new Image();
+        var imgWrapper = {
+          name: filename,
+          img: img,
+          complete: false
+        };
+
+        var imageComplete = lang.partial(function(imgWrapper, evt){
+          imgWrapper.complete = true;
+        }, imgWrapper);
+        on(img, 'load', imageComplete);
+        img.src = filename;
+
+        this.resourceList[filename] = imgWrapper;
+        files[key] = img;
+      }
+
+      return singleFile ? files[0] : files;
     },
 
     /**
-      * Loads an sound file, and tracks if it has finished loading
+      * Loads a sound file (or a collection of sound files), and tracks if it has finished loading
       * @name ResourceManager#loadSound
       * @function
-      * @param {String} filename Filename of the sound relative the Game's HTML page.
+      * @param {String|Array|Object} filename Filename of the sound relative the Game's HTML page.
+      * @returns {Sound Object|Array|Object} Return type based on argument: Sound Object if String, Array of Sound Objects if Array, or Object of key-Sound Object pairs if Object
       *
     */
-    loadSound: function(filename){
-      filename = normalizePath(this.soundDir, filename);
-
-      var soundObj = {
-        name: filename,
-        buffer: null,
-        complete: false
-      };
-
-      if(this.audioContext){
-        if(this.resourceList[filename]){
-          return this.resourceList[filename];
+    loadSound: function(files){
+      var singleFile = false;
+      // Normalize arguments
+      if(!Array.isArray(files)){
+        if(typeof files === 'string'){
+          singleFile = true;
+          files = [files];
+        } else if(typeof files !== 'object'){
+          return;
         }
-
-        this.resourceList[filename] = soundObj;
-
-        //if the browser AudioContext, it's new enough for XMLHttpRequest
-        var request = new XMLHttpRequest();
-        request.open('GET', filename, true);
-        request.responseType = 'arraybuffer';
-
-        //TODO fix scope in onload callback
-        var audioContext = this.audioContext;
-        // Decode asynchronously
-        request.onload = function() {
-          audioContext.decodeAudioData(request.response,
-            function(buffer) {
-              soundObj.buffer = buffer;
-              soundObj.complete = true;
-            },
-            function(er){
-              console.info('error loading sound',er);
-            }
-          );
-        };
-        request.send();
-
       }
 
-      return soundObj;
+      for(var key in files){
+        if(!files.hasOwnProperty(key)){
+          continue;
+        }
+        var filename = normalizePath(this.soundDir, files[key]);
+
+        //if we already have the sound, just return it
+        if(this.resourceList[filename]){
+          files[key] = this.resourceList[filename];
+          continue;
+        }
+
+        this.allLoaded = false;
+
+        var sound = new Sound(filename);
+        this.resourceList[filename] = sound;
+
+        files[key] = sound;
+      }
+      return singleFile ? files[0] : files;
     },
 
     /**
@@ -13083,29 +13079,12 @@ define([
       *
     */
     playSound: function(sound, loop, noteOn, gain){
-      noteOn = noteOn || 0;
-      if(this.audioContext && sound){
-        var buffer = sound.buffer || sound;
-        if(buffer){
-          try{
-            var source = this.audioContext.createBufferSource(); // creates a sound source
-            source.buffer = buffer;                  // tell the source which sound to play
-            if(loop){
-              source.loop = true;
-            }
-            if(gain){
-              var gainNode = this.audioContext.createGainNode();
-              gainNode.gain.value = gain;
-              source.connect(gainNode);
-              gainNode.connect(this.audioContext.destination);
-            }else{
-              source.connect(this.audioContext.destination);       // connect the source to the context's destination (the speakers)
-            }
-            source.noteOn(noteOn);                       // play the source now
-            return source;
-          }catch(se){
-            console.info('error playing sound',se);
-          }
+      if(sound){
+        if(loop){
+          sound.loop(gain);
+        } else {
+          noteOn = noteOn || 0;
+          sound.play(gain, noteOn);
         }
       }
     },
@@ -13155,6 +13134,29 @@ define([
 
 });
 
+},
+'frozen/sounds/Sound':function(){
+define([
+  'require',
+  'dojo/has',
+  '../shims/AudioContext'
+], function(require, has){
+
+  'use strict';
+
+  has.add('WebAudio', function(global){
+    return !!global.AudioContext;
+  });
+
+  return {
+    load: function(id, parentRequire, loaded, config){
+      require([has('WebAudio') ? './WebAudio' : './HTML5Audio'], function(Sound){
+        loaded(Sound);
+      });
+    }
+  };
+
+});
 },
 'frozen/shims/AudioContext':function(){
 define(function(){
@@ -13469,7 +13471,7 @@ define([
 });
 },
 'dojo/query':function(){
-define(["./_base/kernel", "./has", "./dom", "./on", "./_base/array", "./_base/lang", "./selector/_loader", "./selector/_loader!default"],
+define("dojo/query", ["./_base/kernel", "./has", "./dom", "./on", "./_base/array", "./_base/lang", "./selector/_loader", "./selector/_loader!default"],
 	function(dojo, has, dom, on, array, lang, loader, defaultEngine){
 
 	"use strict";

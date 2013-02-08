@@ -1,22 +1,4 @@
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
-/**
  * This represents a Circly body and shape in a Box2d world
  * @name CircleEntity
  * @class CircleEntity
@@ -26,8 +8,9 @@ limitations under the License.
 define([
   'dcl',
   'dcl/bases/Mixer',
-  './Entity'
-], function(dcl, Mixer, Entity){
+  './Entity',
+  '../utils/distance'
+], function(dcl, Mixer, Entity, distance){
 
   'use strict';
 
@@ -41,6 +24,9 @@ define([
     */
     draw: dcl.superCall(function(sup){
       return function(ctx, scale){
+        scale = scale || this.scale || 1;
+        var ogLineWidth = ctx.lineWidth;
+        ctx.lineWidth = this.lineWidth;
         ctx.fillStyle = this.color;
         ctx.strokeStyle = this.strokeColor;
         ctx.beginPath();
@@ -61,6 +47,7 @@ define([
           ctx.stroke();
           ctx.restore();
         }
+        ctx.lineWidth = ogLineWidth;
         sup.apply(this, [ctx, scale]);
       };
     }),
@@ -70,7 +57,18 @@ define([
         this.radius = this.radius * scale;
         sup.apply(this, [scale]);
       };
-    })
+    }),
+
+    /**
+      * Checks if a given point is contained within this Circle.
+      *
+      * @name CircelEntity#pointInShape
+      * @function
+      * @param {Object} point An object with x and y values.
+    */
+    pointInShape: function(point){
+      return (distance(point, this) <= this.radius);
+    }
   });
 
 });

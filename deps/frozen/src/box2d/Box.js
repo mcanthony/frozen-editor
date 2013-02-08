@@ -1,22 +1,4 @@
 /**
-
- Copyright 2011 Luis Montes
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-**/
-
-/**
  * This wraps the box2d world that contains bodies, shapes, and performs the physics calculations.
  * @name Box
  * @class Box
@@ -31,37 +13,41 @@ define([
   'use strict';
 
   // box2d globals
-
-  var B2Vec2 = Box2D.Common.Math.b2Vec2
-    , B2BodyDef = Box2D.Dynamics.b2BodyDef
-    , B2Body = Box2D.Dynamics.b2Body
-    , B2FixtureDef = Box2D.Dynamics.b2FixtureDef
-    , B2Fixture = Box2D.Dynamics.b2Fixture
-    , B2World = Box2D.Dynamics.b2World
-    , B2MassData = Box2D.Collision.Shapes.b2MassData
-    , B2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
-    , B2CircleShape = Box2D.Collision.Shapes.b2CircleShape
-    , B2DebugDraw = Box2D.Dynamics.b2DebugDraw
-    , B2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
+  var B2Vec2 = Box2D.Common.Math.b2Vec2;
+  var B2BodyDef = Box2D.Dynamics.b2BodyDef;
+  var B2Body = Box2D.Dynamics.b2Body;
+  var B2FixtureDef = Box2D.Dynamics.b2FixtureDef;
+  var B2Fixture = Box2D.Dynamics.b2Fixture;
+  var B2World = Box2D.Dynamics.b2World;
+  var B2MassData = Box2D.Collision.Shapes.b2MassData;
+  var B2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape;
+  var B2CircleShape = Box2D.Collision.Shapes.b2CircleShape;
+  var B2DebugDraw = Box2D.Dynamics.b2DebugDraw;
 
   return dcl(Mixer, {
     intervalRate: 60,
     adaptive: false,
-    bodiesMap: [],
-    fixturesMap: [],
-    world: null,
+    bodiesMap: null,
+    fixturesMap: null,
+    jointsMap : null,
+    b2World: null,
     gravityX: 0,
-    gravityY: 10,
+    gravityY: 9.8,
     allowSleep: true,
     resolveCollisions: false,
     contactListener: null,
     collisions: null,
+    scale: 30, // 30 pixels ~ 1 meter in box2d
+
     constructor: function(args){
       if(args && args.intervalRate){
         this.intervalRate = parseInt(args.intervalRate, 10);
       }
+      this.bodiesMap = {};
+      this.fixturesMap = {};
+      this.jointsMap = {};
 
-      this.world = new B2World(new B2Vec2(this.gravityX, this.gravityY), this.allowSleep);
+      this.b2World = new B2World(new B2Vec2(this.gravityX, this.gravityY), this.allowSleep);
 
       if(this.resolveCollisions){
         this.addContactListener(this.contactListener || this);
@@ -82,12 +68,12 @@ define([
 
       var start = Date.now();
       if(millis){
-        this.world.Step(millis / 1000 /* frame-rate */, 10 /* velocity iterations */, 10 /*position iterations*/);
-        this.world.ClearForces();
+        this.b2World.Step(millis / 1000 /* frame-rate */, 10 /* velocity iterations */, 10 /*position iterations*/);
+        this.b2World.ClearForces();
       }else{
         var stepRate = (this.adaptive) ? (start - this.lastTimestamp) / 1000 : (1 / this.intervalRate);
-        this.world.Step(stepRate /* frame-rate */, 10 /* velocity iterations */, 10 /*position iterations*/);
-        this.world.ClearForces();
+        this.b2World.Step(stepRate /* frame-rate */, 10 /* velocity iterations */, 10 /*position iterations*/);
+        this.b2World.ClearForces();
       }
 
       return (Date.now() - start);
@@ -100,22 +86,21 @@ define([
     */
     getState: function() {
       var state = {};
-      for (var b = this.world.m_bodyList /*this.world.GetBodyList()*/; b; b = b.m_next) {
-        var userData = b.m_userData; // b.GetUserData();
-        if (b.IsActive() && typeof userData !== 'undefined' && userData !== null) {
-          state[userData] = {
-            x: b.m_xf.position.x, // b.GetPosition()
-            y: b.m_xf.position.y, // b.GetPosition()
-            angle: b.m_sweep.a, // b.GetAngle()
+      for (var b = this.b2World.GetBodyList(); b; b = b.m_next) {
+        if (b.IsActive() && typeof b.GetUserData() !== 'undefined' && b.GetUserData() !== null) {
+          state[b.GetUserData()] = {
+            x: b.GetPosition().x,
+            y: b.GetPosition().y,
+            angle: b.GetAngle(),
             center: {
-              x: b.m_sweep.c.x, // b.GetWorldCenter()
-              y: b.m_sweep.c.y // b.GetWorldCenter()
+              x: b.GetWorldCenter().x,
+              y: b.GetWorldCenter().y
             },
             linearVelocity: b.m_linearVelocity,
             angularVelocity: b.m_angularVelocity
           };
           if(this.resolveCollisions){
-            state[userData].collisions = this.collisions[userData] || null;
+            state[b.GetUserData()].collisions = this.collisions[b.GetUserData()] || null;
           }
         }
       }
@@ -141,7 +126,6 @@ define([
     },
 
     setBodies: function(bodyEntities) {
-      console.log('bodies',bodyEntities);
       for(var id in bodyEntities) {
         var entity = bodyEntities[id];
         this.addBody(entity);
@@ -150,18 +134,35 @@ define([
     },
 
     /**
-      * Add an Entity to the box2d world which will internally be converted to a box2d body and fixture
+      * Add an Entity to the box2d world which will internally be converted to a box2d body and fixture (auto scaled with Box's scale property if the entity hasn't been scaled yet)
       * @name Box#addBody
       * @function
       * @param {Entity} entity Any Entity object
     */
     addBody: function(entity) {
+      if(!entity.alreadyScaled){
+        entity.scaleShape(1 / this.scale);
+        entity.scale = this.scale;
+      }
+
       var bodyDef = new B2BodyDef();
       var fixDef = new B2FixtureDef();
       var i,j,points,vec,vecs;
       fixDef.restitution = entity.restitution;
       fixDef.density = entity.density;
       fixDef.friction = entity.friction;
+
+
+      //these three props are for custom collision filtering
+      if(entity.hasOwnProperty('maskBits')){
+        fixDef.filter.maskBits = entity.maskBits;
+      }
+      if(entity.hasOwnProperty('categoryBits')){
+        fixDef.filter.categoryBits = entity.categoryBits;
+      }
+      if(entity.hasOwnProperty('groupIndex')){
+        fixDef.filter.groupIndex = entity.groupIndex;
+      }
 
       if(entity.staticBody){
         bodyDef.type =  B2Body.b2_staticBody;
@@ -175,7 +176,7 @@ define([
       bodyDef.angle = entity.angle;
       bodyDef.linearDamping = entity.linearDamping;
       bodyDef.angularDamping = entity.angularDamping;
-      var body = this.world.CreateBody(bodyDef);
+      var body = this.b2World.CreateBody(bodyDef);
 
 
       if (entity.radius) { //circle
@@ -367,7 +368,7 @@ define([
       * @param {Object} vector An object with x and y values in meters per second squared.
     */
     setGravity : function(vector) {
-      this.world.SetGravity(new B2Vec2(vector.x, vector.y));
+      this.b2World.SetGravity(new B2Vec2(vector.x, vector.y));
     },
 
 
@@ -385,7 +386,7 @@ define([
         if(this.fixturesMap[id]){
           this.bodiesMap[id].DestroyFixture(this.fixturesMap[id]);
         }
-        this.world.DestroyBody(this.bodiesMap[id]);
+        this.b2World.DestroyBody(this.bodiesMap[id]);
         //delete this.fixturesMap[id];
         delete this.bodiesMap[id];
       }
@@ -430,30 +431,45 @@ define([
                                impulse.normalImpulses[0]);
         };
       }
-      this.world.SetContactListener(listener);
+      this.b2World.SetContactListener(listener);
     },
 
     /**
-      * Add a revolute joint between two bodies at the center of the first body.
+      * Remove a joint from the world.
+      *
+      * This must be done outside of the update() iteration, and BEFORE any bodies connected to the joint are removed!
+      *
+      * @name Box#destroyJoint
+      * @function
+      * @param {Number} jointId The id of joint to be destroyed.
+    */
+    destroyJoint : function(jointId) {
+      if(this.jointsMap[jointId]){
+        this.b2World.DestroyJoint(this.jointsMap[jointId]);
+        delete this.jointsMap[jointId];
+      }
+    },
+
+    /**
+      * Add a joint to the box2d world.
       *
       * This must be done outside of the update() iteration!
       *
-      * @name Box#addRevoluteJoint
+      * @name Box#addJoint
       * @function
-      * @param {Number} body1Id The id of the first Entity/Body
-      * @param {Number} body2Id The id of the second Entity/Body
-      * @param {Object} jointAttributes Any box2d jointAttributes you wish to mixin to the joint.
+      * @param {Joint} A joint definition.
+
     */
-    addRevoluteJoint : function(body1Id, body2Id, jointAttributes) {
-      var body1 = this.bodiesMap[body1Id];
-      var body2 = this.bodiesMap[body2Id];
-      var joint = new B2RevoluteJointDef();
-      joint.Initialize(body1, body2, body1.GetWorldCenter());
-      if (jointAttributes) {
-        lang.mixin(joint, jointAttributes);
+    addJoint : function(joint) {
+      if(joint && joint.id && !this.jointsMap[joint.id]){
+        var b2Joint = joint.createB2Joint(this);
+        if(b2Joint){
+          this.jointsMap[joint.id] = b2Joint;
+        }
       }
-      this.world.CreateJoint(joint);
+
     },
+
     beginContact: function(idA, idB){
 
     },
