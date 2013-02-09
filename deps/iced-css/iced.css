@@ -1,0 +1,87 @@
+.clearfix {
+  *zoom: 1;
+}
+.clearfix:before,
+.clearfix:after {
+  display: table;
+  content: "";
+  line-height: 0;
+}
+.clearfix:after {
+  clear: both;
+}
+.hide-text {
+  font: 0/0 a;
+  color: transparent;
+  text-shadow: none;
+  background-color: transparent;
+  border: 0;
+}
+.input-block-level {
+  display: block;
+  width: 100%;
+  min-height: 30px;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+/* Buttons based off the GMail button CSS */
+button {
+  background-color: #0ba3e2;
+  background-image: -moz-linear-gradient(top, #10b7fb, #0386bb);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#10b7fb), to(#0386bb));
+  background-image: -webkit-linear-gradient(top, #10b7fb, #0386bb);
+  background-image: -o-linear-gradient(top, #10b7fb, #0386bb);
+  background-image: linear-gradient(to bottom, #10b7fb, #0386bb);
+  background-repeat: repeat-x;
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff10b7fb', endColorstr='#ff0386bb', GradientType=0);
+  -webkit-border-radius: 2px;
+  -moz-border-radius: 2px;
+  border-radius: 2px;
+  color: #fff;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 5px;
+}
+button:hover {
+  background-color: #0b9cd8;
+  background-image: -moz-linear-gradient(top, #10b7fb, #0374a2);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#10b7fb), to(#0374a2));
+  background-image: -webkit-linear-gradient(top, #10b7fb, #0374a2);
+  background-image: -o-linear-gradient(top, #10b7fb, #0374a2);
+  background-image: linear-gradient(to bottom, #10b7fb, #0374a2);
+  background-repeat: repeat-x;
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff10b7fb', endColorstr='#ff0374a2', GradientType=0);
+  border: 1px solid #026993;
+}
+button:active {
+  -webkit-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  -moz-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  background-color: #0b95cd;
+  background-image: -moz-linear-gradient(top, #10b7fb, #026289);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#10b7fb), to(#026289));
+  background-image: -webkit-linear-gradient(top, #10b7fb, #026289);
+  background-image: -o-linear-gradient(top, #10b7fb, #026289);
+  background-image: linear-gradient(to bottom, #10b7fb, #026289);
+  background-repeat: repeat-x;
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff10b7fb', endColorstr='#ff026289', GradientType=0);
+  border: 1px solid #02577a;
+}
+button:focus {
+  -webkit-box-shadow: inset 0 0 0 1px #ffffff;
+  -moz-box-shadow: inset 0 0 0 1px #ffffff;
+  box-shadow: inset 0 0 0 1px #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0);
+  outline: 0 rgba(0, 0, 0, 0);
+}
+button:disabled {
+  -webkit-box-shadow: none;
+  -moz-box-shadow: none;
+  box-shadow: none;
+  background: #10b7fb;
+  opacity: 0.5;
+  border: 1px solid transparent;
+  outline: none;
+}

@@ -4200,10 +4200,10 @@ define([
 
     _.forEach(state.jsonObjs, function(obj){
       if(!obj.staticBody && !obj.zone){
-        obj.color = obj.color || DYNAMIC_COLOR;
+        obj.fillStyle = obj.fillStyle || DYNAMIC_COLOR;
       }
       if(obj.zone){
-        obj.color = obj.color || ZONE_COLOR;
+        obj.fillStyle = obj.fillStyle || ZONE_COLOR;
       }
       if(typeof obj.id === 'undefined' || obj.id === null){
         obj.id = geomId;
@@ -4277,8 +4277,8 @@ define([
         ctx.translate(this.x * scale, this.y * scale);
         ctx.rotate(this.angle);
         ctx.translate(-(this.x) * scale, -(this.y) * scale);
-        ctx.fillStyle = this.color;
-        ctx.strokeStyle = this.strokeColor;
+        ctx.fillStyle = this.fillStyle;
+        ctx.strokeStyle = this.strokeStyle;
         ctx.fillRect(
           (this.x-this.halfWidth) * scale,
           (this.y-this.halfHeight) * scale,
@@ -4349,8 +4349,8 @@ define([
     angularVelocity: 0,
     angularDamping: 0,
     staticBody: false,
-    color: 'rgba(128,128,128,0.5)',
-    strokeColor: '#000',
+    fillStyle: 'rgba(128,128,128,0.5)',
+    strokeStyle: '#000',
     lineWidth: 1,
     hidden: false,
     /* Used for collision filtering */
@@ -4374,7 +4374,7 @@ define([
       var ogLineWidth = ctx.lineWidth;
       ctx.lineWidth = this.lineWidth;
       // black circle in entity's location
-      ctx.fillStyle = this.strokeColor;
+      ctx.fillStyle = this.strokeStyle;
       ctx.beginPath();
       ctx.arc(this.x * scale, this.y * scale, 4, 0, Math.PI * 2, true);
       ctx.closePath();
@@ -4438,8 +4438,8 @@ define([
         ctx.translate(this.x * scale, this.y * scale);
         ctx.rotate(this.angle);
         ctx.translate(-(this.x) * scale, -(this.y) * scale);
-        ctx.fillStyle = this.color;
-        ctx.strokeStyle = this.strokeColor;
+        ctx.fillStyle = this.fillStyle;
+        ctx.strokeStyle = this.strokeStyle;
 
         ctx.beginPath();
         ctx.moveTo((this.x + this.points[0].x) * scale, (this.y + this.points[0].y) * scale);
@@ -4608,8 +4608,8 @@ define([
         scale = scale || this.scale || 1;
         var ogLineWidth = ctx.lineWidth;
         ctx.lineWidth = this.lineWidth;
-        ctx.fillStyle = this.color;
-        ctx.strokeStyle = this.strokeColor;
+        ctx.fillStyle = this.fillStyle;
+        ctx.strokeStyle = this.strokeStyle;
         ctx.beginPath();
         ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, true);
         ctx.closePath();
@@ -10801,6 +10801,8 @@ define([
   'dcl/bases/Mixer'
 ], function(GameCore, Box, dcl, Mixer){
 
+  'use strict';
+
   return dcl([GameCore, Mixer], {
     box: null,
     boxUpdating: true,
@@ -15860,7 +15862,11 @@ define([
       audio.volume = volume || 1;
       audio.loop = loop;
       audio.preload = 'auto';
-      audio.src = this.name;
+      if(audio.mozLoadFrom){
+        audio.mozLoadFrom(this.audio);
+      } else {
+        audio.src = this.name;
+      }
       return audio;
     }
   });

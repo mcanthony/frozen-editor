@@ -2,6 +2,7 @@ node_modules/
 deps/dojo/
 deps/dcl/
 deps/util/
+deps/bootstrap/
 libs/
 *~
 *.log

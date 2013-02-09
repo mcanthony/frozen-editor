@@ -36,10 +36,10 @@ define([
 
     _.forEach(state.jsonObjs, function(obj){
       if(!obj.staticBody && !obj.zone){
-        obj.color = obj.color || DYNAMIC_COLOR;
+        obj.fillStyle = obj.fillStyle || DYNAMIC_COLOR;
       }
       if(obj.zone){
-        obj.color = obj.color || ZONE_COLOR;
+        obj.fillStyle = obj.fillStyle || ZONE_COLOR;
       }
       if(typeof obj.id === 'undefined' || obj.id === null){
         obj.id = geomId;

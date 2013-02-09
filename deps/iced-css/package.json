@@ -1,0 +1,10 @@
+{
+  "name": "iced-css",
+  "version": "0.1.0",
+  "volo": {
+    "baseUrl": "deps",
+    "dependencies": {
+      "bootstrap": "github:twitter/bootstrap/v2.3.0"
+    }
+  }
+}
