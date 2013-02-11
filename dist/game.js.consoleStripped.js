@@ -13603,9 +13603,10 @@ define([
   './toggleRedo',
   'lodash',
   'dojo/on',
+  'dojo/dom',
   'dojo/query',
-  'dojo/domReady!'
-], function(state, createBodies, toggleRedo, _, on, query){
+  'dojo/request'
+], function(state, createBodies, toggleRedo, _, on, dom, query, request){
 
   on(document, '#toolForm:change', function(e){
     state.geometries = [];
@@ -13641,6 +13642,35 @@ define([
     } catch(err){
       0 && console.info('error loading json', err);
     }
+  });
+
+  on(document, '#save:click', function(e){
+    var savedGist = dom.byId('saved-gist');
+    var data = '';
+    try {
+      data = JSON.stringify({
+        'public': true,
+        files: {
+          "world.json": {
+            content: state.codeMirror.getValue()
+          }
+        }
+      });
+    } catch(err){
+      0 && console.log(err);
+    }
+    request.post('https://api.github.com/gists', {
+      method: 'POST',
+      data: data
+    }).then(function(resp){
+      var data = JSON.parse(resp);
+      0 && console.log('gist created', data);
+
+      // TODO: Don't inline html
+      savedGist.innerHTML = 'Data Saved: <a href="' + data.html_url + '">' + data.html_url + '</a>';
+    }, function(err){
+      savedGist.innerHTML = '<span class="error">Error Saving Data - Please Try Again</span>';
+    });
   });
 
   on(document, '#undoBtn:click', function(e){
@@ -15944,6 +15974,125 @@ define([
 		return tmpNodeList;
 	};
 	return query;
+});
+
+},
+'dojo/request':function(){
+define([
+	'./request/default!'/*=====,
+	'./_base/declare',
+	'./promise/Promise' =====*/
+], function(request/*=====, declare, Promise =====*/){
+	/*=====
+	request = function(url, options){
+		// summary:
+		//		Send a request using the default transport for the current platform.
+		// url: String
+		//		The URL to request.
+		// options: dojo/request.__Options?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	request.__Promise = declare(Promise, {
+		// response: dojo/promise/Promise
+		//		A promise resolving to an object representing
+		//		the response from the server.
+	});
+	request.__BaseOptions = declare(null, {
+		// query: String|Object?
+		//		Query parameters to append to the URL.
+		// data: String|Object?
+		//		Data to transfer.  This is ignored for GET and DELETE
+		//		requests.
+		// preventCache: Boolean?
+		//		Whether to append a cache-busting parameter to the URL.
+		// timeout: Integer?
+		//		Milliseconds to wait for the response.  If this time
+		//		passes, the then the promise is rejected.
+		// handleAs: String?
+		//		How to handle the response from the server.  Default is
+		//		'text'.  Other values are 'json', 'javascript', and 'xml'.
+	});
+	request.__MethodOptions = declare(null, {
+		// method: String?
+		//		The HTTP method to use to make the request.  Must be
+		//		uppercase.
+	});
+	request.__Options = declare([request.__BaseOptions, request.__MethodOptions]);
+
+	request.get = function(url, options){
+		// summary:
+		//		Send an HTTP GET request using the default transport for the current platform.
+		// url: String
+		//		URL to request
+		// options: dojo/request.__BaseOptions?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	request.post = function(url, options){
+		// summary:
+		//		Send an HTTP POST request using the default transport for the current platform.
+		// url: String
+		//		URL to request
+		// options: dojo/request.__BaseOptions?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	request.put = function(url, options){
+		// summary:
+		//		Send an HTTP POST request using the default transport for the current platform.
+		// url: String
+		//		URL to request
+		// options: dojo/request.__BaseOptions?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	request.del = function(url, options){
+		// summary:
+		//		Send an HTTP DELETE request using the default transport for the current platform.
+		// url: String
+		//		URL to request
+		// options: dojo/request.__BaseOptions?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	=====*/
+	return request;
+});
+
+},
+'dojo/request/default':function(){
+define([
+	'exports',
+	'require',
+	'../has'
+], function(exports, require, has){
+	var defId = has('config-requestProvider'),
+		platformId;
+
+	if( 1 ){
+		platformId = './xhr';
+	}else if( 0 ){
+		platformId = './node';
+	/* TODO:
+	}else if( 0 ){
+		platformId = './rhino';
+   */
+	}
+
+	if(!defId){
+		defId = platformId;
+	}
+
+	exports.getPlatformDefaultId = function(){
+		return platformId;
+	};
+
+	exports.load = function(id, parentRequire, loaded, config){
+		require([id == 'platform' ? platformId : defId], function(provider){
+			loaded(provider);
+		});
+	};
 });
 
 },

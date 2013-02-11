@@ -4,9 +4,10 @@ define([
   './toggleRedo',
   'lodash',
   'dojo/on',
+  'dojo/dom',
   'dojo/query',
-  'dojo/domReady!'
-], function(state, createBodies, toggleRedo, _, on, query){
+  'dojo/request'
+], function(state, createBodies, toggleRedo, _, on, dom, query, request){
 
   on(document, '#toolForm:change', function(e){
     state.geometries = [];
@@ -42,6 +43,35 @@ define([
     } catch(err){
       console.info('error loading json', err);
     }
+  });
+
+  on(document, '#save:click', function(e){
+    var savedGist = dom.byId('saved-gist');
+    var data = '';
+    try {
+      data = JSON.stringify({
+        'public': true,
+        files: {
+          "world.json": {
+            content: state.codeMirror.getValue()
+          }
+        }
+      });
+    } catch(err){
+      console.log(err);
+    }
+    request.post('https://api.github.com/gists', {
+      method: 'POST',
+      data: data
+    }).then(function(resp){
+      var data = JSON.parse(resp);
+      console.log('gist created', data);
+
+      // TODO: Don't inline html
+      savedGist.innerHTML = 'Data Saved: <a href="' + data.html_url + '">' + data.html_url + '</a>';
+    }, function(err){
+      savedGist.innerHTML = '<span class="error">Error Saving Data - Please Try Again</span>';
+    });
   });
 
   on(document, '#undoBtn:click', function(e){
