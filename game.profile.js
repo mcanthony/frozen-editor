@@ -72,7 +72,8 @@ var profile = (function(){
           'frozen/sounds/WebAudio',
           'frozen/sounds/HTML5Audio',
           'frozen/plugins/loadImage',
-          'frozen/plugins/loadSound'
+          'frozen/plugins/loadSound',
+          'dojo/request/xhr'
         ],
         customBase: true,
         boot: true

@@ -16294,5 +16294,1468 @@ define([
     }
   };
 });
+},
+'dojo/request/xhr':function(){
+define([
+	'../errors/RequestError',
+	'./watch',
+	'./handlers',
+	'./util',
+	'../has'/*=====,
+	'../request',
+	'../_base/declare' =====*/
+], function(RequestError, watch, handlers, util, has/*=====, request, declare =====*/){
+	has.add('native-xhr', function(){
+		// if true, the environment has a native XHR implementation
+		return typeof XMLHttpRequest !== 'undefined';
+	});
+	has.add('dojo-force-activex-xhr', function(){
+		return has('activex') && !document.addEventListener && window.location.protocol === 'file:';
+	});
+
+	has.add('native-xhr2', function(){
+		if(!has('native-xhr')){ return; }
+		var x = new XMLHttpRequest();
+		return typeof x['addEventListener'] !== 'undefined' &&
+			(typeof opera === 'undefined' || typeof x['upload'] !== 'undefined');
+	});
+
+	has.add('native-formdata', function(){
+		// if true, the environment has a native FormData implementation
+		return typeof FormData === 'function';
+	});
+
+	function handleResponse(response, error){
+		var _xhr = response.xhr;
+		response.status = response.xhr.status;
+		response.text = _xhr.responseText;
+
+		if(response.options.handleAs === 'xml'){
+			response.data = _xhr.responseXML;
+		}
+
+		if(!error){
+			try{
+				handlers(response);
+			}catch(e){
+				error = e;
+			}
+		}
+
+		if(error){
+			this.reject(error);
+		}else if(util.checkStatus(_xhr.status)){
+			this.resolve(response);
+		}else{
+			error = new RequestError('Unable to load ' + response.url + ' status: ' + _xhr.status, response);
+
+			this.reject(error);
+		}
+	}
+
+	var isValid, isReady, addListeners, cancel;
+	if(has('native-xhr2')){
+		// Any platform with XHR2 will only use the watch mechanism for timeout.
+
+		isValid = function(response){
+			// summary:
+			//		Check to see if the request should be taken out of the watch queue
+			return !this.isFulfilled();
+		};
+		cancel = function(dfd, response){
+			// summary:
+			//		Canceler for deferred
+			response.xhr.abort();
+		};
+		addListeners = function(_xhr, dfd, response){
+			// summary:
+			//		Adds event listeners to the XMLHttpRequest object
+			function onLoad(evt){
+				dfd.handleResponse(response);
+			}
+			function onError(evt){
+				var _xhr = evt.target;
+				var error = new RequestError('Unable to load ' + response.url + ' status: ' + _xhr.status, response); 
+				dfd.handleResponse(response, error);
+			}
+
+			function onProgress(evt){
+				if(evt.lengthComputable){
+					response.loaded = evt.loaded;
+					response.total = evt.total;
+					dfd.progress(response);
+				}
+			}
+
+			_xhr.addEventListener('load', onLoad, false);
+			_xhr.addEventListener('error', onError, false);
+			_xhr.addEventListener('progress', onProgress, false);
+
+			return function(){
+				_xhr.removeEventListener('load', onLoad, false);
+				_xhr.removeEventListener('error', onError, false);
+				_xhr.removeEventListener('progress', onProgress, false);
+			};
+		};
+	}else{
+		isValid = function(response){
+			return response.xhr.readyState; //boolean
+		};
+		isReady = function(response){
+			return 4 === response.xhr.readyState; //boolean
+		};
+		cancel = function(dfd, response){
+			// summary:
+			//		canceller function for util.deferred call.
+			var xhr = response.xhr;
+			var _at = typeof xhr.abort;
+			if(_at === 'function' || _at === 'object' || _at === 'unknown'){
+				xhr.abort();
+			}
+		};
+	}
+
+	var undefined,
+		defaultOptions = {
+			data: null,
+			query: null,
+			sync: false,
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			}
+		};
+	function xhr(url, options, returnDeferred){
+		var response = util.parseArgs(
+			url,
+			util.deepCreate(defaultOptions, options),
+			has('native-formdata') && options && options.data && options.data instanceof FormData
+		);
+		url = response.url;
+		options = response.options;
+
+		var remover,
+			last = function(){
+				remover && remover();
+			};
+
+		//Make the Deferred object for this xhr request.
+		var dfd = util.deferred(
+			response,
+			cancel,
+			isValid,
+			isReady,
+			handleResponse,
+			last
+		);
+		var _xhr = response.xhr = xhr._create();
+
+		if(!_xhr){
+			// If XHR factory somehow returns nothings,
+			// cancel the deferred.
+			dfd.cancel(new RequestError('XHR was not created'));
+			return returnDeferred ? dfd : dfd.promise;
+		}
+
+		response.getHeader = function(headerName){
+			return this.xhr.getResponseHeader(headerName);
+		};
+
+		if(addListeners){
+			remover = addListeners(_xhr, dfd, response);
+		}
+
+		var data = options.data,
+			async = !options.sync,
+			method = options.method;
+
+		try{
+			// IE6 won't let you call apply() on the native function.
+			_xhr.open(method, url, async, options.user || undefined, options.password || undefined);
+
+			if(options.withCredentials){
+				_xhr.withCredentials = options.withCredentials;
+			}
+
+			var headers = options.headers,
+				contentType;
+			if(headers){
+				for(var hdr in headers){
+					if(hdr.toLowerCase() === 'content-type'){
+						contentType = headers[hdr];
+					}else if(headers[hdr]){
+						//Only add header if it has a value. This allows for instance, skipping
+						//insertion of X-Requested-With by specifying empty value.
+						_xhr.setRequestHeader(hdr, headers[hdr]);
+					}
+				}
+			}
+
+			if(contentType && contentType !== false){
+				_xhr.setRequestHeader('Content-Type', contentType);
+			}
+			if(!headers || !('X-Requested-With' in headers)){
+				_xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+			}
+
+			if(util.notify){
+				util.notify.emit('send', response, dfd.promise.cancel);
+			}
+			_xhr.send(data);
+		}catch(e){
+			dfd.reject(e);
+		}
+
+		watch(dfd);
+		_xhr = null;
+
+		return returnDeferred ? dfd : dfd.promise;
+	}
+
+	/*=====
+	xhr = function(url, options){
+		// summary:
+		//		Sends a request using XMLHttpRequest with the given URL and options.
+		// url: String
+		//		URL to request
+		// options: dojo/request/xhr.__Options?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	xhr.__BaseOptions = declare(request.__BaseOptions, {
+		// sync: Boolean?
+		//		Whether to make a synchronous request or not. Default
+		//		is `false` (asynchronous).
+		// data: String|Object|FormData?
+		//		Data to transfer. This is ignored for GET and DELETE
+		//		requests.
+		// headers: Object?
+		//		Headers to use for the request.
+		// user: String?
+		//		Username to use during the request.
+		// password: String?
+		//		Password to use during the request.
+		// withCredentials: Boolean?
+		//		For cross-site requests, whether to send credentials
+		//		or not.
+	});
+	xhr.__MethodOptions = declare(null, {
+		// method: String?
+		//		The HTTP method to use to make the request. Must be
+		//		uppercase. Default is `"GET"`.
+	});
+	xhr.__Options = declare([xhr.__BaseOptions, xhr.__MethodOptions]);
+
+	xhr.get = function(url, options){
+		// summary:
+		//		Send an HTTP GET request using XMLHttpRequest with the given URL and options.
+		// url: String
+		//		URL to request
+		// options: dojo/request/xhr.__BaseOptions?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	xhr.post = function(url, options){
+		// summary:
+		//		Send an HTTP POST request using XMLHttpRequest with the given URL and options.
+		// url: String
+		//		URL to request
+		// options: dojo/request/xhr.__BaseOptions?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	xhr.put = function(url, options){
+		// summary:
+		//		Send an HTTP PUT request using XMLHttpRequest with the given URL and options.
+		// url: String
+		//		URL to request
+		// options: dojo/request/xhr.__BaseOptions?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	xhr.del = function(url, options){
+		// summary:
+		//		Send an HTTP DELETE request using XMLHttpRequest with the given URL and options.
+		// url: String
+		//		URL to request
+		// options: dojo/request/xhr.__BaseOptions?
+		//		Options for the request.
+		// returns: dojo/request.__Promise
+	};
+	=====*/
+	xhr._create = function(){
+		// summary:
+		//		does the work of portably generating a new XMLHTTPRequest object.
+		throw new Error('XMLHTTP not available');
+	};
+	if(has('native-xhr') && !has('dojo-force-activex-xhr')){
+		xhr._create = function(){
+			return new XMLHttpRequest();
+		};
+	}else if(has('activex')){
+		try{
+			new ActiveXObject('Msxml2.XMLHTTP');
+			xhr._create = function(){
+				return new ActiveXObject('Msxml2.XMLHTTP');
+			};
+		}catch(e){
+			try{
+				new ActiveXObject('Microsoft.XMLHTTP');
+				xhr._create = function(){
+					return new ActiveXObject('Microsoft.XMLHTTP');
+				};
+			}catch(e){}
+		}
+	}
+
+	util.addCommonMethods(xhr);
+
+	return xhr;
+});
+
+},
+'dojo/errors/RequestError':function(){
+define(['./create'], function(create){
+	// module:
+	//		dojo/errors/RequestError
+
+	/*=====
+	 return function(){
+		 // summary:
+		 //		TODOC
+	 };
+	 =====*/
+
+	return create("RequestError", function(message, response){
+		this.response = response;
+	});
+});
+
+},
+'dojo/errors/create':function(){
+define(["../_base/lang"], function(lang){
+	return function(name, ctor, base, props){
+		base = base || Error;
+
+		var ErrorCtor = function(message){
+			if(base === Error){
+				if(Error.captureStackTrace){
+					Error.captureStackTrace(this, ErrorCtor);
+				}
+
+				// Error.call() operates on the returned error
+				// object rather than operating on |this|
+				var err = Error.call(this, message),
+					prop;
+
+				// Copy own properties from err to |this|
+				for(prop in err){
+					if(err.hasOwnProperty(prop)){
+						this[prop] = err[prop];
+					}
+				}
+
+				// messsage is non-enumerable in ES5
+				this.message = message;
+				// stack is non-enumerable in at least Firefox
+				this.stack = err.stack;
+			}else{
+				base.apply(this, arguments);
+			}
+			if(ctor){
+				ctor.apply(this, arguments);
+			}
+		};
+
+		ErrorCtor.prototype = lang.delegate(base.prototype, props);
+		ErrorCtor.prototype.name = name;
+		ErrorCtor.prototype.constructor = ErrorCtor;
+
+		return ErrorCtor;
+	};
+});
+
+},
+'dojo/request/watch':function(){
+define([
+	'./util',
+	'../errors/RequestTimeoutError',
+	'../errors/CancelError',
+	'../_base/array',
+	'../_base/window',
+	'require'
+], function(util, RequestTimeoutError, CancelError, array, win, on){
+	// avoid setting a timer per request. It degrades performance on IE
+	// something fierece if we don't use unified loops.
+	var _inFlightIntvl = null,
+		_inFlight = [];
+
+	function watchInFlight(){
+		// summary:
+		//		internal method that checks each inflight XMLHttpRequest to see
+		//		if it has completed or if the timeout situation applies.
+
+		var now = +(new Date);
+
+		// we need manual loop because we often modify _inFlight (and therefore 'i') while iterating
+		for(var i = 0, dfd; i < _inFlight.length && (dfd = _inFlight[i]); i++){
+			var response = dfd.response,
+				options = response.options;
+			if((dfd.isCanceled && dfd.isCanceled()) || (dfd.isValid && !dfd.isValid(response))){
+				_inFlight.splice(i--, 1);
+				watch._onAction && watch._onAction();
+			}else if(dfd.isReady && dfd.isReady(response)){
+				_inFlight.splice(i--, 1);
+				dfd.handleResponse(response);
+				watch._onAction && watch._onAction();
+			}else if(dfd.startTime){
+				// did we timeout?
+				if(dfd.startTime + (options.timeout || 0) < now){
+					_inFlight.splice(i--, 1);
+					// Cancel the request so the io module can do appropriate cleanup.
+					dfd.cancel(new RequestTimeoutError('Timeout exceeded', response));
+					watch._onAction && watch._onAction();
+				}
+			}
+		}
+
+		watch._onInFlight && watch._onInFlight(dfd);
+
+		if(!_inFlight.length){
+			clearInterval(_inFlightIntvl);
+			_inFlightIntvl = null;
+		}
+	}
+
+	function watch(dfd){
+		// summary:
+		//		Watches the io request represented by dfd to see if it completes.
+		// dfd: Deferred
+		//		The Deferred object to watch.
+		// response: Object
+		//		The object used as the value of the request promise.
+		// validCheck: Function
+		//		Function used to check if the IO request is still valid. Gets the dfd
+		//		object as its only argument.
+		// ioCheck: Function
+		//		Function used to check if basic IO call worked. Gets the dfd
+		//		object as its only argument.
+		// resHandle: Function
+		//		Function used to process response. Gets the dfd
+		//		object as its only argument.
+		if(dfd.response.options.timeout){
+			dfd.startTime = +(new Date);
+		}
+
+		if(dfd.isFulfilled()){
+			// bail out if the deferred is already fulfilled
+			return;
+		}
+
+		_inFlight.push(dfd);
+		if(!_inFlightIntvl){
+			_inFlightIntvl = setInterval(watchInFlight, 50);
+		}
+
+		// handle sync requests separately from async:
+		// http://bugs.dojotoolkit.org/ticket/8467
+		if(dfd.response.options.sync){
+			watchInFlight();
+		}
+	}
+
+	watch.cancelAll = function cancelAll(){
+		// summary:
+		//		Cancels all pending IO requests, regardless of IO type
+		try{
+			array.forEach(_inFlight, function(dfd){
+				try{
+					dfd.cancel(new CancelError('All requests canceled.'));
+				}catch(e){}
+			});
+		}catch(e){}
+	};
+
+	if(win && on && win.doc.attachEvent){
+		// Automatically call cancel all io calls on unload in IE
+		// http://bugs.dojotoolkit.org/ticket/2357
+		on(win.global, 'unload', function(){
+			watch.cancelAll();
+		});
+	}
+
+	return watch;
+});
+
+},
+'dojo/request/util':function(){
+define([
+	'exports',
+	'../errors/RequestError',
+	'../errors/CancelError',
+	'../Deferred',
+	'../io-query',
+	'../_base/array',
+	'../_base/lang'
+], function(exports, RequestError, CancelError, Deferred, ioQuery, array, lang){
+	exports.deepCopy = function deepCopy(target, source){
+		for(var name in source){
+			var tval = target[name],
+				sval = source[name];
+			if(tval !== sval){
+				if(tval && typeof tval === 'object' && sval && typeof sval === 'object'){
+					exports.deepCopy(tval, sval);
+				}else{
+					target[name] = sval;
+				}
+			}
+		}
+		return target;
+	};
+
+	exports.deepCreate = function deepCreate(source, properties){
+		properties = properties || {};
+		var target = lang.delegate(source),
+			name, value;
+
+		for(name in source){
+			value = source[name];
+
+			if(value && typeof value === 'object'){
+				target[name] = exports.deepCreate(value, properties[name]);
+			}
+		}
+		return exports.deepCopy(target, properties);
+	};
+
+	var freeze = Object.freeze || function(obj){ return obj; };
+	function okHandler(response){
+		return freeze(response);
+	}
+
+	exports.deferred = function deferred(response, cancel, isValid, isReady, handleResponse, last){
+		var def = new Deferred(function(reason){
+			cancel && cancel(def, response);
+
+			if(!reason || !(reason instanceof RequestError) && !(reason instanceof CancelError)){
+				return new CancelError('Request canceled', response);
+			}
+			return reason;
+		});
+
+		def.response = response;
+		def.isValid = isValid;
+		def.isReady = isReady;
+		def.handleResponse = handleResponse;
+
+		function errHandler(error){
+			error.response = response;
+			throw error;
+		}
+		var responsePromise = def.then(okHandler).otherwise(errHandler);
+
+		if(exports.notify){
+			responsePromise.then(
+				lang.hitch(exports.notify, 'emit', 'load'),
+				lang.hitch(exports.notify, 'emit', 'error')
+			);
+		}
+
+		var dataPromise = responsePromise.then(function(response){
+				return response.data || response.text;
+			});
+
+		var promise = freeze(lang.delegate(dataPromise, {
+			response: responsePromise
+		}));
+
+
+		if(last){
+			def.then(function(response){
+				last.call(def, response);
+			}, function(error){
+				last.call(def, response, error);
+			});
+		}
+
+		def.promise = promise;
+		def.then = promise.then;
+
+		return def;
+	};
+
+	exports.addCommonMethods = function addCommonMethods(provider, methods){
+		array.forEach(methods||['GET', 'POST', 'PUT', 'DELETE'], function(method){
+			provider[(method === 'DELETE' ? 'DEL' : method).toLowerCase()] = function(url, options){
+				options = lang.delegate(options||{});
+				options.method = method;
+				return provider(url, options);
+			};
+		});
+	};
+
+	exports.parseArgs = function parseArgs(url, options, skipData){
+		var data = options.data,
+			query = options.query;
+		
+		if(data && !skipData){
+			if(typeof data === 'object'){
+				options.data = ioQuery.objectToQuery(data);
+			}
+		}
+
+		if(query){
+			if(typeof query === 'object'){
+				query = ioQuery.objectToQuery(query);
+			}
+			if(options.preventCache){
+				query += (query ? '&' : '') + 'request.preventCache=' + (+(new Date));
+			}
+		}else if(options.preventCache){
+			query = 'request.preventCache=' + (+(new Date));
+		}
+
+		if(url && query){
+			url += (~url.indexOf('?') ? '&' : '?') + query;
+		}
+
+		return {
+			url: url,
+			options: options,
+			getHeader: function(headerName){ return null; }
+		};
+	};
+
+	exports.checkStatus = function(stat){
+		stat = stat || 0;
+		return (stat >= 200 && stat < 300) || // allow any 2XX response code
+			stat === 304 ||                 // or, get it out of the cache
+			stat === 1223 ||                // or, Internet Explorer mangled the status code
+			!stat;                         // or, we're Titanium/browser chrome/chrome extension requesting a local file
+	};
+});
+
+},
+'dojo/errors/CancelError':function(){
+define(["./create"], function(create){
+	// module:
+	//		dojo/errors/CancelError
+
+	/*=====
+	return function(){
+		// summary:
+		//		Default error if a promise is canceled without a reason.
+	};
+	=====*/
+
+	return create("CancelError", null, null, { dojoType: "cancel" });
+});
+
+},
+'dojo/Deferred':function(){
+define("dojo/Deferred", [
+	"./has",
+	"./_base/lang",
+	"./errors/CancelError",
+	"./promise/Promise",
+	"require"
+], function(has, lang, CancelError, Promise, instrumentation){
+	"use strict";
+
+	// module:
+	//		dojo/Deferred
+
+	var PROGRESS = 0,
+			RESOLVED = 1,
+			REJECTED = 2;
+	var FULFILLED_ERROR_MESSAGE = "This deferred has already been fulfilled.";
+
+	var freezeObject = Object.freeze || function(){};
+
+	var signalWaiting = function(waiting, type, result, rejection, deferred){
+		if( 0 ){
+			if(type === REJECTED && Deferred.instrumentRejected && waiting.length === 0){
+				Deferred.instrumentRejected(result, false, rejection, deferred);
+			}
+		}
+
+		for(var i = 0; i < waiting.length; i++){
+			signalListener(waiting[i], type, result, rejection);
+		}
+	};
+
+	var signalListener = function(listener, type, result, rejection){
+		var func = listener[type];
+		var deferred = listener.deferred;
+		if(func){
+			try{
+				var newResult = func(result);
+				if(type === PROGRESS){
+					if(typeof newResult !== "undefined"){
+						signalDeferred(deferred, type, newResult);
+					}
+				}else{
+					if(newResult && typeof newResult.then === "function"){
+						listener.cancel = newResult.cancel;
+						newResult.then(
+								// Only make resolvers if they're actually going to be used
+								makeDeferredSignaler(deferred, RESOLVED),
+								makeDeferredSignaler(deferred, REJECTED),
+								makeDeferredSignaler(deferred, PROGRESS));
+						return;
+					}
+					signalDeferred(deferred, RESOLVED, newResult);
+				}
+			}catch(error){
+				signalDeferred(deferred, REJECTED, error);
+			}
+		}else{
+			signalDeferred(deferred, type, result);
+		}
+
+		if( 0 ){
+			if(type === REJECTED && Deferred.instrumentRejected){
+				Deferred.instrumentRejected(result, !!func, rejection, deferred.promise);
+			}
+		}
+	};
+
+	var makeDeferredSignaler = function(deferred, type){
+		return function(value){
+			signalDeferred(deferred, type, value);
+		};
+	};
+
+	var signalDeferred = function(deferred, type, result){
+		if(!deferred.isCanceled()){
+			switch(type){
+				case PROGRESS:
+					deferred.progress(result);
+					break;
+				case RESOLVED:
+					deferred.resolve(result);
+					break;
+				case REJECTED:
+					deferred.reject(result);
+					break;
+			}
+		}
+	};
+
+	var Deferred = function(canceler){
+		// summary:
+		//		Creates a new deferred. This API is preferred over
+		//		`dojo/_base/Deferred`.
+		// description:
+		//		Creates a new deferred, as an abstraction over (primarily)
+		//		asynchronous operations. The deferred is the private interface
+		//		that should not be returned to calling code. That's what the
+		//		`promise` is for. See `dojo/promise/Promise`.
+		// canceler: Function?
+		//		Will be invoked if the deferred is canceled. The canceler
+		//		receives the reason the deferred was canceled as its argument.
+		//		The deferred is rejected with its return value, or a new
+		//		`dojo/errors/CancelError` instance.
+
+		// promise: dojo/promise/Promise
+		//		The public promise object that clients can add callbacks to. 
+		var promise = this.promise = new Promise();
+
+		var deferred = this;
+		var fulfilled, result, rejection;
+		var canceled = false;
+		var waiting = [];
+
+		if( 0  && Error.captureStackTrace){
+			Error.captureStackTrace(deferred, Deferred);
+			Error.captureStackTrace(promise, Deferred);
+		}
+
+		this.isResolved = promise.isResolved = function(){
+			// summary:
+			//		Checks whether the deferred has been resolved.
+			// returns: Boolean
+
+			return fulfilled === RESOLVED;
+		};
+
+		this.isRejected = promise.isRejected = function(){
+			// summary:
+			//		Checks whether the deferred has been rejected.
+			// returns: Boolean
+
+			return fulfilled === REJECTED;
+		};
+
+		this.isFulfilled = promise.isFulfilled = function(){
+			// summary:
+			//		Checks whether the deferred has been resolved or rejected.
+			// returns: Boolean
+
+			return !!fulfilled;
+		};
+
+		this.isCanceled = promise.isCanceled = function(){
+			// summary:
+			//		Checks whether the deferred has been canceled.
+			// returns: Boolean
+
+			return canceled;
+		};
+
+		this.progress = function(update, strict){
+			// summary:
+			//		Emit a progress update on the deferred.
+			// description:
+			//		Emit a progress update on the deferred. Progress updates
+			//		can be used to communicate updates about the asynchronous
+			//		operation before it has finished.
+			// update: any
+			//		The progress update. Passed to progbacks.
+			// strict: Boolean?
+			//		If strict, will throw an error if the deferred has already
+			//		been fulfilled and consequently no progress can be emitted.
+			// returns: dojo/promise/Promise
+			//		Returns the original promise for the deferred.
+
+			if(!fulfilled){
+				signalWaiting(waiting, PROGRESS, update, null, deferred);
+				return promise;
+			}else if(strict === true){
+				throw new Error(FULFILLED_ERROR_MESSAGE);
+			}else{
+				return promise;
+			}
+		};
+
+		this.resolve = function(value, strict){
+			// summary:
+			//		Resolve the deferred.
+			// description:
+			//		Resolve the deferred, putting it in a success state.
+			// value: any
+			//		The result of the deferred. Passed to callbacks.
+			// strict: Boolean?
+			//		If strict, will throw an error if the deferred has already
+			//		been fulfilled and consequently cannot be resolved.
+			// returns: dojo/promise/Promise
+			//		Returns the original promise for the deferred.
+
+			if(!fulfilled){
+				// Set fulfilled, store value. After signaling waiting listeners unset
+				// waiting.
+				signalWaiting(waiting, fulfilled = RESOLVED, result = value, null, deferred);
+				waiting = null;
+				return promise;
+			}else if(strict === true){
+				throw new Error(FULFILLED_ERROR_MESSAGE);
+			}else{
+				return promise;
+			}
+		};
+
+		var reject = this.reject = function(error, strict){
+			// summary:
+			//		Reject the deferred.
+			// description:
+			//		Reject the deferred, putting it in an error state.
+			// error: any
+			//		The error result of the deferred. Passed to errbacks.
+			// strict: Boolean?
+			//		If strict, will throw an error if the deferred has already
+			//		been fulfilled and consequently cannot be rejected.
+			// returns: dojo/promise/Promise
+			//		Returns the original promise for the deferred.
+
+			if(!fulfilled){
+				if( 0  && Error.captureStackTrace){
+					Error.captureStackTrace(rejection = {}, reject);
+				}
+				signalWaiting(waiting, fulfilled = REJECTED, result = error, rejection, deferred);
+				waiting = null;
+				return promise;
+			}else if(strict === true){
+				throw new Error(FULFILLED_ERROR_MESSAGE);
+			}else{
+				return promise;
+			}
+		};
+
+		this.then = promise.then = function(callback, errback, progback){
+			// summary:
+			//		Add new callbacks to the deferred.
+			// description:
+			//		Add new callbacks to the deferred. Callbacks can be added
+			//		before or after the deferred is fulfilled.
+			// callback: Function?
+			//		Callback to be invoked when the promise is resolved.
+			//		Receives the resolution value.
+			// errback: Function?
+			//		Callback to be invoked when the promise is rejected.
+			//		Receives the rejection error.
+			// progback: Function?
+			//		Callback to be invoked when the promise emits a progress
+			//		update. Receives the progress update.
+			// returns: dojo/promise/Promise
+			//		Returns a new promise for the result of the callback(s).
+			//		This can be used for chaining many asynchronous operations.
+
+			var listener = [progback, callback, errback];
+			// Ensure we cancel the promise we're waiting for, or if callback/errback
+			// have returned a promise, cancel that one.
+			listener.cancel = promise.cancel;
+			listener.deferred = new Deferred(function(reason){
+				// Check whether cancel is really available, returned promises are not
+				// required to expose `cancel`
+				return listener.cancel && listener.cancel(reason);
+			});
+			if(fulfilled && !waiting){
+				signalListener(listener, fulfilled, result, rejection);
+			}else{
+				waiting.push(listener);
+			}
+			return listener.deferred.promise;
+		};
+
+		this.cancel = promise.cancel = function(reason, strict){
+			// summary:
+			//		Inform the deferred it may cancel its asynchronous operation.
+			// description:
+			//		Inform the deferred it may cancel its asynchronous operation.
+			//		The deferred's (optional) canceler is invoked and the
+			//		deferred will be left in a rejected state. Can affect other
+			//		promises that originate with the same deferred.
+			// reason: any
+			//		A message that may be sent to the deferred's canceler,
+			//		explaining why it's being canceled.
+			// strict: Boolean?
+			//		If strict, will throw an error if the deferred has already
+			//		been fulfilled and consequently cannot be canceled.
+			// returns: any
+			//		Returns the rejection reason if the deferred was canceled
+			//		normally.
+
+			if(!fulfilled){
+				// Cancel can be called even after the deferred is fulfilled
+				if(canceler){
+					var returnedReason = canceler(reason);
+					reason = typeof returnedReason === "undefined" ? reason : returnedReason;
+				}
+				canceled = true;
+				if(!fulfilled){
+					// Allow canceler to provide its own reason, but fall back to a CancelError
+					if(typeof reason === "undefined"){
+						reason = new CancelError();
+					}
+					reject(reason);
+					return reason;
+				}else if(fulfilled === REJECTED && result === reason){
+					return reason;
+				}
+			}else if(strict === true){
+				throw new Error(FULFILLED_ERROR_MESSAGE);
+			}
+		};
+
+		freezeObject(promise);
+	};
+
+	Deferred.prototype.toString = function(){
+		// returns: String
+		//		Returns `[object Deferred]`.
+
+		return "[object Deferred]";
+	};
+
+	if(instrumentation){
+		instrumentation(Deferred);
+	}
+
+	return Deferred;
+});
+
+},
+'dojo/promise/Promise':function(){
+define([
+	"../_base/lang"
+], function(lang){
+	"use strict";
+
+	// module:
+	//		dojo/promise/Promise
+
+	function throwAbstract(){
+		throw new TypeError("abstract");
+	}
+
+	return lang.extend(function Promise(){
+		// summary:
+		//		The public interface to a deferred.
+		// description:
+		//		The public interface to a deferred. All promises in Dojo are
+		//		instances of this class.
+	}, {
+		then: function(callback, errback, progback){
+			// summary:
+			//		Add new callbacks to the promise.
+			// description:
+			//		Add new callbacks to the deferred. Callbacks can be added
+			//		before or after the deferred is fulfilled.
+			// callback: Function?
+			//		Callback to be invoked when the promise is resolved.
+			//		Receives the resolution value.
+			// errback: Function?
+			//		Callback to be invoked when the promise is rejected.
+			//		Receives the rejection error.
+			// progback: Function?
+			//		Callback to be invoked when the promise emits a progress
+			//		update. Receives the progress update.
+			// returns: dojo/promise/Promise
+			//		Returns a new promise for the result of the callback(s).
+			//		This can be used for chaining many asynchronous operations.
+
+			throwAbstract();
+		},
+
+		cancel: function(reason, strict){
+			// summary:
+			//		Inform the deferred it may cancel its asynchronous operation.
+			// description:
+			//		Inform the deferred it may cancel its asynchronous operation.
+			//		The deferred's (optional) canceler is invoked and the
+			//		deferred will be left in a rejected state. Can affect other
+			//		promises that originate with the same deferred.
+			// reason: any
+			//		A message that may be sent to the deferred's canceler,
+			//		explaining why it's being canceled.
+			// strict: Boolean?
+			//		If strict, will throw an error if the deferred has already
+			//		been fulfilled and consequently cannot be canceled.
+			// returns: any
+			//		Returns the rejection reason if the deferred was canceled
+			//		normally.
+
+			throwAbstract();
+		},
+
+		isResolved: function(){
+			// summary:
+			//		Checks whether the promise has been resolved.
+			// returns: Boolean
+
+			throwAbstract();
+		},
+
+		isRejected: function(){
+			// summary:
+			//		Checks whether the promise has been rejected.
+			// returns: Boolean
+
+			throwAbstract();
+		},
+
+		isFulfilled: function(){
+			// summary:
+			//		Checks whether the promise has been resolved or rejected.
+			// returns: Boolean
+
+			throwAbstract();
+		},
+
+		isCanceled: function(){
+			// summary:
+			//		Checks whether the promise has been canceled.
+			// returns: Boolean
+
+			throwAbstract();
+		},
+
+		always: function(callbackOrErrback){
+			// summary:
+			//		Add a callback to be invoked when the promise is resolved
+			//		or rejected.
+			// callbackOrErrback: Function?
+			//		A function that is used both as a callback and errback.
+			// returns: dojo/promise/Promise
+			//		Returns a new promise for the result of the callback/errback.
+
+			return this.then(callbackOrErrback, callbackOrErrback);
+		},
+
+		otherwise: function(errback){
+			// summary:
+			//		Add new errbacks to the promise.
+			// errback: Function?
+			//		Callback to be invoked when the promise is rejected.
+			// returns: dojo/promise/Promise
+			//		Returns a new promise for the result of the errback.
+
+			return this.then(null, errback);
+		},
+
+		trace: function(){
+			return this;
+		},
+
+		traceRejected: function(){
+			return this;
+		},
+
+		toString: function(){
+			// returns: string
+			//		Returns `[object Promise]`.
+
+			return "[object Promise]";
+		}
+	});
+});
+
+},
+'dojo/io-query':function(){
+define("dojo/io-query", ["./_base/lang"], function(lang){
+
+// module:
+//		dojo/io-query
+
+var backstop = {};
+
+return {
+// summary:
+//		This module defines query string processing functions.
+
+	objectToQuery: function objectToQuery(/*Object*/ map){
+		// summary:
+        //		takes a name/value mapping object and returns a string representing
+        //		a URL-encoded version of that object.
+        // example:
+        //		this object:
+        //
+        //	|	{
+        //	|		blah: "blah",
+        //	|		multi: [
+        //	|			"thud",
+        //	|			"thonk"
+        //	|		]
+        //	|	};
+        //
+        //		yields the following query string:
+        //
+        //	|	"blah=blah&multi=thud&multi=thonk"
+
+        // FIXME: need to implement encodeAscii!!
+        var enc = encodeURIComponent, pairs = [];
+        for(var name in map){
+            var value = map[name];
+            if(value != backstop[name]){
+                var assign = enc(name) + "=";
+                if(lang.isArray(value)){
+                    for(var i = 0, l = value.length; i < l; ++i){
+                        pairs.push(assign + enc(value[i]));
+                    }
+                }else{
+                    pairs.push(assign + enc(value));
+                }
+            }
+        }
+        return pairs.join("&"); // String
+    },
+
+	queryToObject: function queryToObject(/*String*/ str){
+        // summary:
+        //		Create an object representing a de-serialized query section of a
+        //		URL. Query keys with multiple values are returned in an array.
+        //
+        // example:
+        //		This string:
+        //
+        //	|		"foo=bar&foo=baz&thinger=%20spaces%20=blah&zonk=blarg&"
+        //
+        //		results in this object structure:
+        //
+        //	|		{
+        //	|			foo: [ "bar", "baz" ],
+        //	|			thinger: " spaces =blah",
+        //	|			zonk: "blarg"
+        //	|		}
+        //
+        //		Note that spaces and other urlencoded entities are correctly
+        //		handled.
+
+        // FIXME: should we grab the URL string if we're not passed one?
+        var dec = decodeURIComponent, qp = str.split("&"), ret = {}, name, val;
+        for(var i = 0, l = qp.length, item; i < l; ++i){
+            item = qp[i];
+            if(item.length){
+                var s = item.indexOf("=");
+                if(s < 0){
+                    name = dec(item);
+                    val = "";
+                }else{
+                    name = dec(item.slice(0, s));
+                    val  = dec(item.slice(s + 1));
+                }
+                if(typeof ret[name] == "string"){ // inline'd type check
+                    ret[name] = [ret[name]];
+                }
+
+                if(lang.isArray(ret[name])){
+                    ret[name].push(val);
+                }else{
+                    ret[name] = val;
+                }
+            }
+        }
+        return ret; // Object
+    }
+};
+});
+},
+'dojo/errors/RequestTimeoutError':function(){
+define(['./create', './RequestError'], function(create, RequestError){
+	// module:
+	//		dojo/errors/RequestTimeoutError
+
+	/*=====
+	 return function(){
+		 // summary:
+		 //		TODOC
+	 };
+	 =====*/
+
+	return create("RequestTimeoutError", null, RequestError, {
+		dojoType: "timeout"
+	});
+});
+
+},
+'dojo/request/handlers':function(){
+define([
+	'../json',
+	'../_base/kernel',
+	'../_base/array',
+	'../has'
+], function(JSON, kernel, array, has){
+	has.add('activex', typeof ActiveXObject !== 'undefined');
+
+	var handleXML;
+	if(has('activex')){
+		// GUIDs obtained from http://msdn.microsoft.com/en-us/library/ms757837(VS.85).aspx
+		var dp = [
+			'Msxml2.DOMDocument.6.0',
+			'Msxml2.DOMDocument.4.0',
+			'MSXML2.DOMDocument.3.0',
+			'MSXML.DOMDocument' // 2.0
+		];
+
+		handleXML = function(response){
+			var result = response.data;
+
+			if(!result || !result.documentElement){
+				var text = response.text;
+				array.some(dp, function(p){
+					try{
+						var dom = new ActiveXObject(p);
+						dom.async = false;
+						dom.loadXML(text);
+						result = dom;
+					}catch(e){ return false; }
+					return true;
+				});
+			}
+
+			return result;
+		};
+	}
+
+	var handlers = {
+		'javascript': function(response){
+			return kernel.eval(response.text || '');
+		},
+		'json': function(response){
+			return JSON.parse(response.text || null);
+		},
+		'xml': handleXML
+	};
+
+	function handle(response){
+		var handler = handlers[response.options.handleAs];
+
+		response.data = handler ? handler(response) : (response.data || response.text);
+
+		return response;
+	}
+
+	handle.register = function(name, handler){
+		handlers[name] = handler;
+	};
+
+	return handle;
+});
+
+},
+'dojo/json':function(){
+define(["./has"], function(has){
+	"use strict";
+	var hasJSON = typeof JSON != "undefined";
+	has.add("json-parse", hasJSON); // all the parsers work fine
+		// Firefox 3.5/Gecko 1.9 fails to use replacer in stringify properly https://bugzilla.mozilla.org/show_bug.cgi?id=509184
+	has.add("json-stringify", hasJSON && JSON.stringify({a:0}, function(k,v){return v||1;}) == '{"a":1}');
+
+	/*=====
+	return {
+		// summary:
+		//		Functions to parse and serialize JSON
+
+		parse: function(str, strict){
+			// summary:
+			//		Parses a [JSON](http://json.org) string to return a JavaScript object.
+			// description:
+			//		This function follows [native JSON API](https://developer.mozilla.org/en/JSON)
+			//		Throws for invalid JSON strings. This delegates to eval() if native JSON
+			//		support is not available. By default this will evaluate any valid JS expression.
+			//		With the strict parameter set to true, the parser will ensure that only
+			//		valid JSON strings are parsed (otherwise throwing an error). Without the strict
+			//		parameter, the content passed to this method must come
+			//		from a trusted source.
+			// str:
+			//		a string literal of a JSON item, for instance:
+			//		`'{ "foo": [ "bar", 1, { "baz": "thud" } ] }'`
+			// strict:
+			//		When set to true, this will ensure that only valid, secure JSON is ever parsed.
+			//		Make sure this is set to true for untrusted content. Note that on browsers/engines
+			//		without native JSON support, setting this to true will run slower.
+		},
+		stringify: function(value, replacer, spacer){
+			// summary:
+			//		Returns a [JSON](http://json.org) serialization of an object.
+			// description:
+			//		Returns a [JSON](http://json.org) serialization of an object.
+			//		This function follows [native JSON API](https://developer.mozilla.org/en/JSON)
+			//		Note that this doesn't check for infinite recursion, so don't do that!
+			// value:
+			//		A value to be serialized.
+			// replacer:
+			//		A replacer function that is called for each value and can return a replacement
+			// spacer:
+			//		A spacer string to be used for pretty printing of JSON
+			// example:
+			//		simple serialization of a trivial object
+			//	|	define(["dojo/json"], function(JSON){
+			// 	|		var jsonStr = JSON.stringify({ howdy: "stranger!", isStrange: true });
+			//	|		doh.is('{"howdy":"stranger!","isStrange":true}', jsonStr);
+		}
+	};
+	=====*/
+
+	if(has("json-stringify")){
+		return JSON;
+	}else{
+		var escapeString = function(/*String*/str){
+			// summary:
+			//		Adds escape sequences for non-visual characters, double quote and
+			//		backslash and surrounds with double quotes to form a valid string
+			//		literal.
+			return ('"' + str.replace(/(["\\])/g, '\\$1') + '"').
+				replace(/[\f]/g, "\\f").replace(/[\b]/g, "\\b").replace(/[\n]/g, "\\n").
+				replace(/[\t]/g, "\\t").replace(/[\r]/g, "\\r"); // string
+		};
+		return {
+			parse: has("json-parse") ? JSON.parse : function(str, strict){
+				if(strict && !/^([\s\[\{]*(?:"(?:\\.|[^"])+"|-?\d[\d\.]*(?:[Ee][+-]?\d+)?|null|true|false|)[\s\]\}]*(?:,|:|$))+$/.test(str)){
+					throw new SyntaxError("Invalid characters in JSON");
+				}
+				return eval('(' + str + ')');
+			},
+			stringify: function(value, replacer, spacer){
+				var undef;
+				if(typeof replacer == "string"){
+					spacer = replacer;
+					replacer = null;
+				}
+				function stringify(it, indent, key){
+					if(replacer){
+						it = replacer(key, it);
+					}
+					var val, objtype = typeof it;
+					if(objtype == "number"){
+						return isFinite(it) ? it + "" : "null";
+					}
+					if(objtype == "boolean"){
+						return it + "";
+					}
+					if(it === null){
+						return "null";
+					}
+					if(typeof it == "string"){
+						return escapeString(it);
+					}
+					if(objtype == "function" || objtype == "undefined"){
+						return undef; // undefined
+					}
+					// short-circuit for objects that support "json" serialization
+					// if they return "self" then just pass-through...
+					if(typeof it.toJSON == "function"){
+						return stringify(it.toJSON(key), indent, key);
+					}
+					if(it instanceof Date){
+						return '"{FullYear}-{Month+}-{Date}T{Hours}:{Minutes}:{Seconds}Z"'.replace(/\{(\w+)(\+)?\}/g, function(t, prop, plus){
+							var num = it["getUTC" + prop]() + (plus ? 1 : 0);
+							return num < 10 ? "0" + num : num;
+						});
+					}
+					if(it.valueOf() !== it){
+						// primitive wrapper, try again unwrapped:
+						return stringify(it.valueOf(), indent, key);
+					}
+					var nextIndent= spacer ? (indent + spacer) : "";
+					/* we used to test for DOM nodes and throw, but FF serializes them as {}, so cross-browser consistency is probably not efficiently attainable */ 
+				
+					var sep = spacer ? " " : "";
+					var newLine = spacer ? "\n" : "";
+				
+					// array
+					if(it instanceof Array){
+						var itl = it.length, res = [];
+						for(key = 0; key < itl; key++){
+							var obj = it[key];
+							val = stringify(obj, nextIndent, key);
+							if(typeof val != "string"){
+								val = "null";
+							}
+							res.push(newLine + nextIndent + val);
+						}
+						return "[" + res.join(",") + newLine + indent + "]";
+					}
+					// generic object code path
+					var output = [];
+					for(key in it){
+						var keyStr;
+						if(it.hasOwnProperty(key)){
+							if(typeof key == "number"){
+								keyStr = '"' + key + '"';
+							}else if(typeof key == "string"){
+								keyStr = escapeString(key);
+							}else{
+								// skip non-string or number keys
+								continue;
+							}
+							val = stringify(it[key], nextIndent, key);
+							if(typeof val != "string"){
+								// skip non-serializable values
+								continue;
+							}
+							// At this point, the most non-IE browsers don't get in this branch 
+							// (they have native JSON), so push is definitely the way to
+							output.push(newLine + nextIndent + keyStr + ":" + sep + val);
+						}
+					}
+					return "{" + output.join(",") + newLine + indent + "}"; // String
+				}
+				return stringify(value, "", "");
+			}
+		};
+	}
+});
+
 }}});
 (function(){ require({cache:{}}); require.boot && require.apply(null, require.boot); })();
