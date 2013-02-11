@@ -1979,7 +1979,8 @@ define([
 ], function(StateManager, dom){
 
   var state = new StateManager({
-    jsonObjs: [],
+    entities: [],
+    joints: [],
     undoObjs: [],
     geometries: [],
     tool: 'rectangle',
@@ -4150,7 +4151,7 @@ define([
       }
 
       state.geometries.push(mp);
-      state.jsonObjs.push(createJSON[state.tool](state.geometries));
+      state.entities.push(createJSON[state.tool](state.geometries));
       createBodies();
       state.geometries = [];
 
@@ -4165,13 +4166,14 @@ define([
 define([
   './state',
   './Entities',
+  './Joints',
   './ui/getGravity',
   './ui/displayJSON',
   './ui/toggleUndo',
   'lodash',
   'dojo/dom-class',
   'frozen/box2d/Box'
-], function(state, Entities, getGravity, displayJSON, toggleUndo, _, domClass, Box){
+], function(state, Entities, Joints, getGravity, displayJSON, toggleUndo, _, domClass, Box){
 
   var DYNAMIC_COLOR = 'rgba(0,255,0,0.4)';
   var ZONE_COLOR = 'rgba(255,0,0,0.2)';
@@ -4189,7 +4191,7 @@ define([
 
     state.game.entities = {};
 
-    var max = _.chain(state.jsonObjs).map(function(obj){
+    var max = _.chain(state.entities).map(function(obj){
       var id = parseInt(obj.id, 10);
       return typeof id === 'undefined' || id === null || isNaN(id) ? -1 : id;
     }).max().value();
@@ -4198,7 +4200,7 @@ define([
       geomId = max + 1;
     }
 
-    _.forEach(state.jsonObjs, function(obj){
+    _.forEach(state.entities, function(obj){
       if(!obj.staticBody && !obj.zone){
         obj.fillStyle = obj.fillStyle || DYNAMIC_COLOR;
       }
@@ -4221,13 +4223,18 @@ define([
       }
     });
 
+    _.forEach(state.joints, function(obj){
+      var joint = new Joints[obj.type](obj);
+      state.game.box.addJoint(joint);
+    });
+
     if(errors){
       domClass.remove('duplicate-ids', 'hide');
     } else {
       domClass.add('duplicate-ids', 'hide');
     }
 
-    displayJSON(state.jsonObjs);
+    displayJSON(state.entities);
     toggleUndo();
   };
 
@@ -4665,6 +4672,213 @@ define(function(){
 
 });
 },
+'game/Joints':function(){
+define([
+  'frozen/box2d/joints/Distance',
+  'frozen/box2d/joints/Prismatic',
+  'frozen/box2d/joints/Revolute'
+], function(Distance, Prismatic, Revolute){
+
+  return {
+    Distance: Distance,
+    Prismatic: Prismatic,
+    Revolute: Revolute
+  };
+
+});
+},
+'frozen/box2d/joints/Distance':function(){
+/**
+ * This represents a distance joint between two bodies.
+ * This type of joint forces two bodies to keep a constant distance for each other.
+ * @name Distance
+ * @class Distance
+ * @extends Joint
+ */
+
+define([
+  'dcl',
+  'dcl/bases/Mixer',
+  'dojo/_base/lang'
+], function(dcl, Mixer, lang){
+
+  'use strict';
+
+  // box2d globals
+  var B2Vec2 = Box2D.Common.Math.b2Vec2;
+  var B2DistanceJointDef = Box2D.Dynamics.Joints.b2DistanceJointDef;
+
+  return dcl(Mixer, {
+    bodyPoint2: null,
+
+    /**
+      * Scales the positions bodies that the joint are connected at.
+      * @name Distance#scaleJointLocation
+      * @function
+      * @param {Number} scale the scale to multiply the dimentions by
+    */
+    scaleJointLocation: dcl.superCall(function(sup){
+      return function(scale){
+        if(scale && this.bodyPoint2){
+          this.bodyPoint2.x = this.bodyPoint2.x * scale;
+          this.bodyPoint2.y = this.bodyPoint2.y * scale;
+          this.alreadyScaled = true;
+          sup.apply(this, [scale]);
+        }
+      };
+    }),
+
+    /**
+      * Creates and adds this joint in the Box2d world.
+      * @name Distance#createB2Joint
+      * @function
+      * @param {Box} the box in which to create the joint.
+    */
+    createB2Joint: function(box){
+      if(box && box.bodiesMap && box.b2World && box.jointsMap && !box.jointsMap[this.id]){
+        var body1 = box.bodiesMap[this.bodyId1];
+        var body2 = box.bodiesMap[this.bodyId2];
+        if(body1 && body2){
+          var vec1, vec2;
+          if(this.bodyPoint1){
+            vec1 = new B2Vec2(this.bodyPoint1.x, this.bodyPoint1.y);
+          }
+          if(this.bodyPoint2){
+            vec2 = new B2Vec2(this.bodyPoint2.x, this.bodyPoint2.y);
+          }
+          vec1 = vec1 || body1.GetWorldCenter();
+          vec2 = vec2 || body2.GetWorldCenter();
+          var joint = new B2DistanceJointDef();
+          joint.Initialize(body1, body2, vec1, vec2);
+
+          if (this.jointAttributes) {
+            lang.mixin(joint, this.jointAttributes);
+          }
+          return box.b2World.CreateJoint(joint);
+        }
+      }
+    }
+
+  });
+
+});
+},
+'frozen/box2d/joints/Prismatic':function(){
+/**
+ * This represents a prismatic joint between two bodies.
+ * This type of joint forces a body to keep its angle rotation consitent with another body
+ * @name Prismatic
+ * @class Prismatic
+ * @extends Joint
+ */
+
+define([
+  'dcl',
+  'dcl/bases/Mixer',
+  'dojo/_base/lang'
+], function(dcl, Mixer, lang){
+
+  'use strict';
+
+  // box2d globals
+  var B2Vec2 = Box2D.Common.Math.b2Vec2;
+  var B2PrismaticJointDef = Box2D.Dynamics.Joints.b2PrismaticJointDef;
+
+  return dcl(Mixer, {
+    axisScale: null,
+
+    /**
+      * Creates and adds this joint in the Box2d world.
+      * @name Prismatic#createB2Joint
+      * @function
+      * @param {Box} the box in which to create the joint.
+    */
+    createB2Joint: function(box){
+      if(box && box.bodiesMap && box.b2World && box.jointsMap && !box.jointsMap[this.id]){
+        var body1 = box.bodiesMap[this.bodyId1];
+        var body2 = box.bodiesMap[this.bodyId2];
+        if(body1 && body2){
+          var vec1;
+          if(this.bodyPoint1){
+            vec1 = new B2Vec2(this.bodyPoint1.x, this.bodyPoint1.y);
+          }
+          vec1 = vec1 || body1.GetWorldCenter();
+          var joint = new B2PrismaticJointDef();
+          var axis;
+          if(this.axisScale){
+            axis = new B2Vec2(this.axisScale.x, this.axisScale.y);
+          }else{
+            axis = new B2Vec2(1, 0);
+          }
+          joint.Initialize(body1, body2, vec1, axis);
+
+          if (this.jointAttributes) {
+            lang.mixin(joint, this.jointAttributes);
+          }
+          return box.b2World.CreateJoint(joint);
+        }
+      }
+    }
+
+  });
+
+});
+},
+'frozen/box2d/joints/Revolute':function(){
+/**
+ * This represents a revolute joint between two bodies.
+ * This allow for rotation of one body around a point of another.
+ * @name Revolute
+ * @class Revolute
+ * @extends Joint
+ */
+
+define([
+  'dcl',
+  'dcl/bases/Mixer',
+  'dojo/_base/lang'
+], function(dcl, Mixer, lang){
+
+  'use strict';
+
+  // box2d globals
+  var B2Vec2 = Box2D.Common.Math.b2Vec2;
+  var B2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
+
+  return dcl(Mixer, {
+
+    /**
+      * Creates and adds this joint in the Box2d world.
+      * @name Revolute#createB2Joint
+      * @function
+      * @param {Box} the box in which to create the joint.
+    */
+    createB2Joint: function(box){
+      if(box && box.bodiesMap && box.b2World && box.jointsMap && !box.jointsMap[this.id]){
+        var body1 = box.bodiesMap[this.bodyId1];
+        var body2 = box.bodiesMap[this.bodyId2];
+        if(body1 && body2){
+          var vec1;
+          if(this.bodyPoint1){
+            vec1 = new B2Vec2(this.bodyPoint1.x, this.bodyPoint1.y);
+          }
+          vec1 = vec1 || body1.GetWorldCenter();
+          var joint = new B2RevoluteJointDef();
+          var axis;
+          joint.Initialize(body1, body2, vec1, axis);
+
+          if (this.jointAttributes) {
+            lang.mixin(joint, this.jointAttributes);
+          }
+          return box.b2World.CreateJoint(joint);
+        }
+      }
+    }
+
+  });
+
+});
+},
 'game/ui/getGravity':function(){
 define([
   'dojo/dom',
@@ -4689,10 +4903,11 @@ define([
   'dojo/dom'
 ], function(state, dom){
 
-  return function(json){
+  return function(entities){
 
     state.codeMirror.setValue(JSON.stringify({
-      objs: json,
+      entities: entities,
+      joints: state.joints,
       canvas: {
         height: state.game ? state.game.height : null,
         width: state.game ? state.game.width : null
@@ -4713,7 +4928,7 @@ define([
   var undoBtn = dom.byId('undoBtn');
 
   return function(){
-    if(state.jsonObjs.length){
+    if(state.entities.length){
       undoBtn.disabled = false;
     } else {
       undoBtn.disabled = true;
@@ -13408,26 +13623,29 @@ define([
 
   on(document, '#load:click', function(e){
     try {
-      var jsobj = JSON.parse(state.codeMirror.getValue());
-      state.jsonObjs = jsobj.objs;
-      if(jsobj.backImg){
-        state.backImg = new Image();
-        state.backImg.src = jsobj.backImg;
+      var data = JSON.parse(state.codeMirror.getValue());
+      state.entities = data.entities || data.objs;
+      if(data.joints){
+        state.joints = data.joints;
       }
-      state.game.setHeight(jsobj.canvas.height);
-      state.game.setWidth(jsobj.canvas.width);
+      if(data.backImg){
+        state.backImg = new Image();
+        state.backImg.src = data.backImg;
+      }
+      state.game.setHeight(data.canvas.height);
+      state.game.setWidth(data.canvas.width);
 
       createBodies();
 
-      0 && console.log(jsobj);
+      0 && console.log(data);
     } catch(err){
       0 && console.info('error loading json', err);
     }
   });
 
   on(document, '#undoBtn:click', function(e){
-    if(state.jsonObjs.length){
-      state.undoObjs.push(state.jsonObjs.pop());
+    if(state.entities.length){
+      state.undoObjs.push(state.entities.pop());
       createBodies();
     }
     toggleRedo();
@@ -13435,7 +13653,7 @@ define([
 
   on(document, '#redoBtn:click', function(e){
     if(state.undoObjs.length){
-      state.jsonObjs.push(state.undoObjs.pop());
+      state.entities.push(state.undoObjs.pop());
       createBodies();
     }
     toggleRedo();

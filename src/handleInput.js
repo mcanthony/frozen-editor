@@ -39,7 +39,7 @@ define([
       }
 
       state.geometries.push(mp);
-      state.jsonObjs.push(createJSON[state.tool](state.geometries));
+      state.entities.push(createJSON[state.tool](state.geometries));
       createBodies();
       state.geometries = [];
 

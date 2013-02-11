@@ -5,7 +5,8 @@ define([
 ], function(StateManager, dom){
 
   var state = new StateManager({
-    jsonObjs: [],
+    entities: [],
+    joints: [],
     undoObjs: [],
     geometries: [],
     tool: 'rectangle',

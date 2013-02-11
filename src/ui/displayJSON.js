@@ -3,10 +3,11 @@ define([
   'dojo/dom'
 ], function(state, dom){
 
-  return function(json){
+  return function(entities){
 
     state.codeMirror.setValue(JSON.stringify({
-      objs: json,
+      entities: entities,
+      joints: state.joints,
       canvas: {
         height: state.game ? state.game.height : null,
         width: state.game ? state.game.width : null

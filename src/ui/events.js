@@ -24,26 +24,29 @@ define([
 
   on(document, '#load:click', function(e){
     try {
-      var jsobj = JSON.parse(state.codeMirror.getValue());
-      state.jsonObjs = jsobj.objs;
-      if(jsobj.backImg){
-        state.backImg = new Image();
-        state.backImg.src = jsobj.backImg;
+      var data = JSON.parse(state.codeMirror.getValue());
+      state.entities = data.entities || data.objs;
+      if(data.joints){
+        state.joints = data.joints;
       }
-      state.game.setHeight(jsobj.canvas.height);
-      state.game.setWidth(jsobj.canvas.width);
+      if(data.backImg){
+        state.backImg = new Image();
+        state.backImg.src = data.backImg;
+      }
+      state.game.setHeight(data.canvas.height);
+      state.game.setWidth(data.canvas.width);
 
       createBodies();
 
-      console.log(jsobj);
+      console.log(data);
     } catch(err){
       console.info('error loading json', err);
     }
   });
 
   on(document, '#undoBtn:click', function(e){
-    if(state.jsonObjs.length){
-      state.undoObjs.push(state.jsonObjs.pop());
+    if(state.entities.length){
+      state.undoObjs.push(state.entities.pop());
       createBodies();
     }
     toggleRedo();
@@ -51,7 +54,7 @@ define([
 
   on(document, '#redoBtn:click', function(e){
     if(state.undoObjs.length){
-      state.jsonObjs.push(state.undoObjs.pop());
+      state.entities.push(state.undoObjs.pop());
       createBodies();
     }
     toggleRedo();

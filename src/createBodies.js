@@ -1,13 +1,14 @@
 define([
   './state',
   './Entities',
+  './Joints',
   './ui/getGravity',
   './ui/displayJSON',
   './ui/toggleUndo',
   'lodash',
   'dojo/dom-class',
   'frozen/box2d/Box'
-], function(state, Entities, getGravity, displayJSON, toggleUndo, _, domClass, Box){
+], function(state, Entities, Joints, getGravity, displayJSON, toggleUndo, _, domClass, Box){
 
   var DYNAMIC_COLOR = 'rgba(0,255,0,0.4)';
   var ZONE_COLOR = 'rgba(255,0,0,0.2)';
@@ -25,7 +26,7 @@ define([
 
     state.game.entities = {};
 
-    var max = _.chain(state.jsonObjs).map(function(obj){
+    var max = _.chain(state.entities).map(function(obj){
       var id = parseInt(obj.id, 10);
       return typeof id === 'undefined' || id === null || isNaN(id) ? -1 : id;
     }).max().value();
@@ -34,7 +35,7 @@ define([
       geomId = max + 1;
     }
 
-    _.forEach(state.jsonObjs, function(obj){
+    _.forEach(state.entities, function(obj){
       if(!obj.staticBody && !obj.zone){
         obj.fillStyle = obj.fillStyle || DYNAMIC_COLOR;
       }
@@ -57,13 +58,18 @@ define([
       }
     });
 
+    _.forEach(state.joints, function(obj){
+      var joint = new Joints[obj.type](obj);
+      state.game.box.addJoint(joint);
+    });
+
     if(errors){
       domClass.remove('duplicate-ids', 'hide');
     } else {
       domClass.add('duplicate-ids', 'hide');
     }
 
-    displayJSON(state.jsonObjs);
+    displayJSON(state.entities);
     toggleUndo();
   };
 
