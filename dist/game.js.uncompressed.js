@@ -4699,8 +4699,9 @@ define([
 define([
   'dcl',
   'dcl/bases/Mixer',
-  'dojo/_base/lang'
-], function(dcl, Mixer, lang){
+  'dojo/_base/lang',
+  './Joint'
+], function(dcl, Mixer, lang, Joint){
 
   'use strict';
 
@@ -4708,7 +4709,7 @@ define([
   var B2Vec2 = Box2D.Common.Math.b2Vec2;
   var B2DistanceJointDef = Box2D.Dynamics.Joints.b2DistanceJointDef;
 
-  return dcl(Mixer, {
+  return dcl([Mixer, Joint], {
     bodyPoint2: null,
 
     /**
@@ -4723,8 +4724,8 @@ define([
           this.bodyPoint2.x = this.bodyPoint2.x * scale;
           this.bodyPoint2.y = this.bodyPoint2.y * scale;
           this.alreadyScaled = true;
-          sup.apply(this, [scale]);
         }
+        sup.apply(this, [scale]);
       };
     }),
 
@@ -4763,6 +4764,44 @@ define([
 
 });
 },
+'frozen/box2d/joints/Joint':function(){
+/**
+ * This represents a joint between two bodies.
+ * @name Joint
+ * @class Joint
+ */
+
+define([
+  'dcl',
+  'dcl/bases/Mixer'
+], function(dcl, Mixer){
+
+  'use strict';
+
+  return dcl(Mixer, {
+    bodyId1: null,
+    bodyId2: null,
+    bodyPoint1: null,
+    jointAttributes: null,
+
+    /**
+      * Scales the position that on the first body that the joint is connected at.
+      * @name Entity#scaleJointLocation
+      * @function
+      * @param {Number} scale the scale to multiply the dimentions by
+    */
+    scaleJointLocation: function(scale){
+      if(scale && this.bodyPoint1){
+        this.bodyPoint1.x = this.bodyPoint1.x * scale;
+        this.bodyPoint1.y = this.bodyPoint1.y * scale;
+        this.alreadyScaled = true;
+      }
+    }
+
+  });
+
+});
+},
 'frozen/box2d/joints/Prismatic':function(){
 /**
  * This represents a prismatic joint between two bodies.
@@ -4775,8 +4814,9 @@ define([
 define([
   'dcl',
   'dcl/bases/Mixer',
-  'dojo/_base/lang'
-], function(dcl, Mixer, lang){
+  'dojo/_base/lang',
+  './Joint'
+], function(dcl, Mixer, lang, Joint){
 
   'use strict';
 
@@ -4784,7 +4824,7 @@ define([
   var B2Vec2 = Box2D.Common.Math.b2Vec2;
   var B2PrismaticJointDef = Box2D.Dynamics.Joints.b2PrismaticJointDef;
 
-  return dcl(Mixer, {
+  return dcl([Mixer, Joint], {
     axisScale: null,
 
     /**
@@ -4836,8 +4876,9 @@ define([
 define([
   'dcl',
   'dcl/bases/Mixer',
-  'dojo/_base/lang'
-], function(dcl, Mixer, lang){
+  'dojo/_base/lang',
+  './Joint'
+], function(dcl, Mixer, lang, Joint){
 
   'use strict';
 
@@ -4845,7 +4886,7 @@ define([
   var B2Vec2 = Box2D.Common.Math.b2Vec2;
   var B2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef;
 
-  return dcl(Mixer, {
+  return dcl([Mixer, Joint], {
 
     /**
       * Creates and adds this joint in the Box2d world.
@@ -10362,6 +10403,12 @@ define([
     */
     addJoint : function(joint) {
       if(joint && joint.id && !this.jointsMap[joint.id]){
+
+        if(!joint.alreadyScaled && joint.scaleJointLocation){
+          joint.scaleJointLocation(1 / this.scale);
+          joint.scale = this.scale;
+        }
+
         var b2Joint = joint.createB2Joint(this);
         if(b2Joint){
           this.jointsMap[joint.id] = b2Joint;
