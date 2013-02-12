@@ -26,7 +26,7 @@ define([
 
     state.game.entities = {};
 
-    var max = _.chain(state.entities).map(function(obj){
+    var max = _(state.entities).map(function(obj){
       var id = parseInt(obj.id, 10);
       return typeof id === 'undefined' || id === null || isNaN(id) ? -1 : id;
     }).max().value();
@@ -48,7 +48,7 @@ define([
       }
 
       if(!state.game.entities[obj.id]){
-        var ent = new Entities[obj.type](obj);
+        var ent = new Entities[obj.type](_.cloneDeep(obj));
         state.game.entities[obj.id] = ent;
         if(!obj.zone){
           state.game.box.addBody(ent);
@@ -59,7 +59,7 @@ define([
     });
 
     _.forEach(state.joints, function(obj){
-      var joint = new Joints[obj.type](obj);
+      var joint = new Joints[obj.type](_.cloneDeep(obj));
       state.game.box.addJoint(joint);
     });
 
