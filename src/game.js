@@ -17,19 +17,19 @@ define([
       beginContact: function(idA, idB, contact){
         console.log('begin contact', idA, idB, contact);
         if(contact.GetFixtureA().IsSensor() && contact.IsTouching()){
-          state.game.entities[idB].hitSensor = true;
+          state.game.entities[idB].touching[idA] = true;
         }
         if(contact.GetFixtureB().IsSensor() && contact.IsTouching()){
-          state.game.entities[idA].hitSensor = true;
+          state.game.entities[idA].touching[idB] = true;
         }
       },
       endContact: function(idA, idB, contact){
         console.log('end contact', idA, idB, contact);
         if(contact.GetFixtureA().IsSensor() && !contact.IsTouching()){
-          state.game.entities[idB].hitSensor = false;
+          state.game.entities[idB].touching[idA] = false;
         }
         if(contact.GetFixtureB().IsSensor() && !contact.IsTouching()){
-          state.game.entities[idA].hitSensor = false;
+          state.game.entities[idA].touching[idB] = false;
         }
       }
     })

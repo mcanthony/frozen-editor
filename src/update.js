@@ -4,7 +4,6 @@ define([
 
   'use strict';
 
-  var DYNAMIC_COLOR = 'rgba(0,255,0,0.4)';
   var SENSOR_CONTACT_COLOR = 'rgba(0,0,255,0.2)';
 
   return function(){
@@ -12,10 +11,13 @@ define([
       if(entity.staticBody){
         return;
       }
-      if(entity.hitSensor){
+      var touching = _.any(entity.touching, function(touch){
+        return touch;
+      });
+      if(touching){
         entity.fillStyle = SENSOR_CONTACT_COLOR;
       } else {
-        entity.fillStyle = DYNAMIC_COLOR;
+        entity.fillStyle = entity.originalFill;
       }
     });
   };
