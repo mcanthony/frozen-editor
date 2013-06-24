@@ -17,7 +17,7 @@ define([
       if(!entity.staticBody || state.showStatic){
         entity.draw(ctx);
       }
-    }, this);
+    });
 
     if(!state.geometries.length){
       return;
