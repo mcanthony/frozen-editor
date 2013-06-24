@@ -2,10 +2,9 @@ define([
   './state',
   './createBodies',
   './createJSON/main',
-  './utils/insideCanvas',
   'dojo/dom',
   'frozen/utils'
-], function(state, createBodies, createJSON, insideCanvas, dom, utils){
+], function(state, createBodies, createJSON, dom, utils){
 
   'use strict';
 
@@ -25,7 +24,7 @@ define([
     }
 
     // mouse pressed
-    if(im.mouseAction.isPressed() && insideCanvas(im.mouseAction.startPosition, this) && !mp){
+    if(im.mouseAction.isPressed() && im.insideCanvas(im.mouseAction.startPosition) && !mp){
       mp = im.mouseAction.startPosition;
       console.log('start ' + state.tool, mp);
       state.geometries.push(mp);
