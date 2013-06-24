@@ -1,3 +1,17 @@
+/**
+ * AMD Plugin for loading Sounds
+ * @module plugins/loadSound
+ * @example
+ * define([
+ *   'frozen/plugins/loadSound!someSound.wav'
+ * ], function(someSound){
+ *
+ *   // Use someSound
+ *
+ * });
+ */
+
+
 define([
   '../ResourceManager',
   '../utils/parseString'

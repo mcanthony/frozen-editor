@@ -1,22 +1,41 @@
 /**
  * This Entity represents a Rectangle
- * @name RectangleEntity
- * @class RectangleEntity
+ * @name Rectangle
+ * @constructor Rectangle
  * @extends Entity
  */
 
 define([
   'dcl',
-  'dcl/bases/Mixer',
   './Entity'
-], function(dcl, Mixer, Entity){
+], function(dcl, Entity){
 
   'use strict';
 
-  return dcl([Mixer, Entity], {
+  return dcl(Entity, {
+    declaredClass: 'frozen/box2d/entities/Rectangle',
+    /**
+     * Half of the Rectangle's total width
+     * @type {Number}
+     * @memberOf Rectangle#
+     * @default
+     */
     halfWidth: 1,
+    /**
+     * Half of the Rectangle's total width
+     * @type {Number}
+     * @memberOf Rectangle#
+     * @default
+     */
     halfHeight: 1,
 
+    /**
+     * Draws the Rectangle at a given scale
+     * @function
+     * @memberOf Rectangle#
+     * @param {Context} ctx The drawing context
+     * @param {Number} scale The scale at which to draw
+     */
     draw: dcl.superCall(function(sup){
       return function(ctx, scale){
         scale = scale || this.scale || 1;
@@ -46,6 +65,12 @@ define([
       };
     }),
 
+    /**
+     * Scale this shape
+     * @function
+     * @memberOf Rectangle#
+     * @param {Number} scale The amount the shape should scale
+     */
     scaleShape: dcl.superCall(function(sup){
       return function(scale){
         this.halfHeight = this.halfHeight * scale;
@@ -55,12 +80,12 @@ define([
     }),
 
     /**
-      * Checks if a given point is contained within this Rectangle.
-      *
-      * @name RectangleEntity#pointInShape
-      * @function
-      * @param {Object} point An object with x and y values.
-    */
+     * Checks if a given point is contained within this Rectangle.
+     * @function
+     * @memberOf Rectangle#
+     * @param {Object} point An object with x and y values.
+     * @return {Boolean} True if point is in shape else false
+     */
     pointInShape: function(point){
       return ((point.x >= (this.x - this.halfWidth)) && (point.x <= (this.x + this.halfWidth)) && (point.y >= (this.y - this.halfHeight)) && (point.y <= (this.y + this.halfHeight)));
     }

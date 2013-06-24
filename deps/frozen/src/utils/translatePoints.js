@@ -1,30 +1,31 @@
+/*jshint eqnull:true */
 define([
-  'dojo/_base/lang'
-], function(lang){
+  'lodash'
+], function(_){
 
   'use strict';
 
-  var translatePoints = function(points, translation){
-    if(lang.isArray(points)){
-      var newPoints = [];
-      points.forEach(function(point){
-        newPoints.push(translatePoints(point, translation));
+  function translatePoints(points, translation){
+    if(Array.isArray(points)){
+      points = _.map(points, function(point){
+        return translatePoints(point, translation);
       });
-      points = newPoints;
-    }else{
-      points = {x: points.x, y: points.y};
+    } else {
+      points = {
+        x: points.x,
+        y: points.y
+      };
 
-      if(translation.hasOwnProperty('x')){
-        points.x+= translation.x;
+      if(translation.x != null){
+        points.x += translation.x;
       }
 
-      if(translation.hasOwnProperty('y')){
-        points.y+= translation.y;
+      if(translation.y != null){
+        points.y += translation.y;
       }
-
     }
     return points;
-  };
+  }
 
   return translatePoints;
 

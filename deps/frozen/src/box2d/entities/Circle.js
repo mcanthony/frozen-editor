@@ -1,27 +1,35 @@
 /**
- * This represents a Circly body and shape in a Box2d world
- * @name CircleEntity
- * @class CircleEntity
+ * This represents a Circle body and shape in a Box2d world
+ * @name Circle
+ * @constructor Circle
  * @extends Entity
  */
 
 define([
   'dcl',
-  'dcl/bases/Mixer',
   './Entity',
-  '../utils/distance'
-], function(dcl, Mixer, Entity, distance){
+  '../../utils/distance'
+], function(dcl, Entity, distance){
 
   'use strict';
 
-  return dcl([Mixer, Entity], {
+  return dcl(Entity, {
+    declaredClass: 'frozen/box2d/entities/Circle',
+    /**
+     * The radius of this circle.
+     * @type {Number}
+     * @memberOf Circle#
+     * @default
+     */
     radius: 1,
 
     /**
-      * Draws the CircelEntity at a given scale
-      * @name CircleEntity#draw
-      * @function
-    */
+     * Draws the Circle at a given scale
+     * @function
+     * @memberOf Circle#
+     * @param {Context} ctx The drawing context
+     * @param {Number} scale The scale at which to draw
+     */
     draw: dcl.superCall(function(sup){
       return function(ctx, scale){
         scale = scale || this.scale || 1;
@@ -52,6 +60,12 @@ define([
       };
     }),
 
+    /**
+     * Scale this shape
+     * @function
+     * @memberOf Circle#
+     * @param {Number} scale The amount the shape should scale
+     */
     scaleShape: dcl.superCall(function(sup){
       return function(scale){
         this.radius = this.radius * scale;
@@ -60,12 +74,12 @@ define([
     }),
 
     /**
-      * Checks if a given point is contained within this Circle.
-      *
-      * @name CircelEntity#pointInShape
-      * @function
-      * @param {Object} point An object with x and y values.
-    */
+     * Checks if a given point is contained within this Circle.
+     * @function
+     * @memberOf Circle#
+     * @param {Object} point An object with x and y values.
+     * @return {Boolean} True if point is in shape else false
+     */
     pointInShape: function(point){
       return (distance(point, this) <= this.radius);
     }

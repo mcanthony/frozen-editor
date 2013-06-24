@@ -16,12 +16,6 @@ var profile = (function(){
 
     dojoBootText: "(function(){ require({cache:{}}); require.boot && require.apply(null, require.boot); })();",
 
-    packages: [
-      { name: 'dojo', location: 'deps/dojo' },
-      { name: 'dcl', location: 'deps/dcl', main: 'dcl' },
-      { name: 'frozen', location: './src', main: 'GameCore' }
-    ],
-
     defaultConfig: {
       hasCache:{
         "dojo-built": 1,
@@ -75,30 +69,17 @@ var profile = (function(){
       },
       "dist/frozen": {
         include: [
-          'frozen/box2d/Box',
-          'frozen/box2d/CircleEntity',
-          'frozen/box2d/Entity',
-          'frozen/box2d/PolygonEntity',
-          'frozen/box2d/MultiPolygonEntity',
-          'frozen/box2d/RectangleEntity',
-          'frozen/reiner/Creature',
-          'frozen/AnimFrame',
-          'frozen/Animation',
-          'frozen/GameAction',
-          'frozen/MouseAction',
-          'frozen/GameCore',
-          'frozen/InputManager',
-          'frozen/ResourceManager',
-          'frozen/shims/AudioContext',
-          'frozen/shims/RAF',
-          'frozen/Sprite',
-          'frozen/utils',
-          'frozen/utils/parseString',
-          'frozen/sounds/Sound',
-          'frozen/sounds/WebAudio',
-          'frozen/sounds/HTML5Audio',
+          // box2d
+          'frozen/box2d/BoxGame',
+          'frozen/box2d/entities',
+          'frozen/box2d/joints',
+          // plugins
           'frozen/plugins/loadImage',
           'frozen/plugins/loadSound',
+          // reiner
+          'frozen/reiner/Creature',
+          // utils
+          'frozen/utils',
           'dojo/keys'
         ],
         customBase: true,

@@ -2,16 +2,15 @@
  * This represents a prismatic joint between two bodies.
  * This type of joint forces a body to keep its angle rotation consitent with another body
  * @name Prismatic
- * @class Prismatic
+ * @constructor Prismatic
  * @extends Joint
  */
 
 define([
   'dcl',
-  'dcl/bases/Mixer',
-  'dojo/_base/lang',
+  'lodash',
   './Joint'
-], function(dcl, Mixer, lang, Joint){
+], function(dcl, _, Joint){
 
   'use strict';
 
@@ -19,15 +18,23 @@ define([
   var B2Vec2 = Box2D.Common.Math.b2Vec2;
   var B2PrismaticJointDef = Box2D.Dynamics.Joints.b2PrismaticJointDef;
 
-  return dcl([Mixer, Joint], {
+  return dcl(Joint, {
+    declaredClass: 'frozen/box2d/joints/Prismatic',
+    /**
+     * An object with x and y numeric components representing the line in which the entities can move relative to each other
+     * @type {Object}
+     * @memberOf Prismatic#
+     * @default
+     */
     axisScale: null,
 
     /**
-      * Creates and adds this joint in the Box2d world.
-      * @name Prismatic#createB2Joint
-      * @function
-      * @param {Box} the box in which to create the joint.
-    */
+     * Creates and adds this joint in the Box2d world.
+     * @function
+     * @memberOf Prismatic#
+     * @param {Box} the box in which to create the joint.
+     * @return {b2Joint} Joint created by box2d
+     */
     createB2Joint: function(box){
       if(box && box.bodiesMap && box.b2World && box.jointsMap && !box.jointsMap[this.id]){
         var body1 = box.bodiesMap[this.bodyId1];
@@ -48,7 +55,7 @@ define([
           joint.Initialize(body1, body2, vec1, axis);
 
           if (this.jointAttributes) {
-            lang.mixin(joint, this.jointAttributes);
+            _.assign(joint, this.jointAttributes);
           }
           return box.b2World.CreateJoint(joint);
         }
