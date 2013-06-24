@@ -14,7 +14,7 @@ define([
         radius: dist
       };
       circ.staticBody = state.toolType === 'static';
-      circ.zone = state.toolType === 'zone';
+      circ.sensor = state.sensor;
       circ.type = 'Circle';
 
       return circ;

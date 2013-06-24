@@ -24,7 +24,7 @@ define([
       });
 
       poly.staticBody = state.toolType === 'static';
-      poly.zone = state.toolType === 'zone';
+      poly.sensor = state.sensor;
       poly.type = 'Polygon';
 
       return poly;

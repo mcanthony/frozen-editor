@@ -12,6 +12,7 @@ define([
     geometries: [],
     tool: 'rectangle',
     toolType: 'static',
+    sensor: false,
     showStatic: true,
     backImg: null,
     game: null,

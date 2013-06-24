@@ -21,12 +21,9 @@ define([
     var errors = false;
     var gravity = getGravity();
 
-    state.game.box = new Box({
-      gravityX: gravity.x,
-      gravityY: gravity.y
-    });
-
-    state.game.entities = {};
+    state.game.box.setGravity(gravity);
+    state.game.removeBodies(_.toArray(state.game.entities));
+    state.game.removeJoints(_.toArray(state.game.joints));
 
     var max = _(state.entities).map(function(obj){
       var id = parseInt(obj.id, 10);
@@ -38,10 +35,10 @@ define([
     }
 
     _.forEach(state.entities, function(obj){
-      if(!obj.staticBody && !obj.zone){
+      if(!obj.staticBody && !obj.sensor){
         obj.fillStyle = obj.fillStyle || DYNAMIC_COLOR;
       }
-      if(obj.zone){
+      if(obj.sensor){
         obj.fillStyle = obj.fillStyle || ZONE_COLOR;
       }
       if(typeof obj.id === 'undefined' || obj.id === null){

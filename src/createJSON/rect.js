@@ -16,7 +16,7 @@ define([
         halfHeight: Math.abs((pts[1].y - pts[0].y) / 2) || 0.5
       };
       rect.staticBody = state.toolType === 'static';
-      rect.zone = state.toolType === 'zone';
+      rect.sensor = state.sensor;
       rect.type = 'Rectangle';
 
       return rect;

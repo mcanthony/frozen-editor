@@ -36,8 +36,12 @@ define([
         state.backImg = new Image();
         state.backImg.src = data.backImg;
       }
-      state.game.setHeight(data.canvas.height);
-      state.game.setWidth(data.canvas.width);
+      if(data.canvas.height){
+        state.game.setHeight(data.canvas.height);
+      }
+      if(data.canvas.width){
+        state.game.setWidth(data.canvas.width);
+      }
 
       createBodies();
 
@@ -93,6 +97,10 @@ define([
   });
 
   on(document, '.gravity:change', _.debounce(createBodies, 500));
+
+  on(document, '#sensor:change', function(e){
+    state.sensor = e.target.checked;
+  });
 
   on(document, '#runSimulation:change', function(e){
     state.game.boxUpdating = e.target.checked;
