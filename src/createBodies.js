@@ -13,7 +13,7 @@ define([
   'use strict';
 
   var DYNAMIC_COLOR = 'rgba(0,255,0,0.4)';
-  var ZONE_COLOR = 'rgba(255,0,0,0.2)';
+  var SENSOR_COLOR = 'rgba(255,0,0,0.2)';
 
   var geomId = 0;
 
@@ -39,7 +39,7 @@ define([
         obj.fillStyle = obj.fillStyle || DYNAMIC_COLOR;
       }
       if(obj.sensor){
-        obj.fillStyle = obj.fillStyle || ZONE_COLOR;
+        obj.fillStyle = obj.fillStyle || SENSOR_COLOR;
       }
       if(typeof obj.id === 'undefined' || obj.id === null){
         obj.id = geomId;
@@ -50,6 +50,8 @@ define([
         var Entity = entities[obj.type];
         if(Entity){
           var ent = new Entity(_.cloneDeep(obj));
+          ent.originalFill = ent.fillStyle;
+          ent.touching = {};
           state.game.addBody(ent);
         }
       } else {
