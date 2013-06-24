@@ -2,6 +2,8 @@ define([
   'frozen/utils'
 ], function(utils){
 
+  'use strict';
+
   return function(ctx, im, geometries){
     var dist = utils.distance(geometries[0], im.mouseAction.position);
     ctx.strokeStyle = 'red';

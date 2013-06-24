@@ -1,5 +1,7 @@
 define(function(){
 
+  'use strict';
+
   var orderRectPts = function(pts){
     var retVal = [];
     var pt1,pt2;

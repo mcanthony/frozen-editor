@@ -3,6 +3,8 @@ define([
   '../utils/orderRectPts'
 ], function(state, orderRectPts){
 
+  'use strict';
+
   return function(currentGeom){
     if(currentGeom && currentGeom.length === 2){
       var pts = orderRectPts(currentGeom);

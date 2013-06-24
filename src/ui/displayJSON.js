@@ -3,6 +3,8 @@ define([
   'dojo/dom'
 ], function(state, dom){
 
+  'use strict';
+
   return function(entities){
 
     state.codeMirror.setValue(JSON.stringify({

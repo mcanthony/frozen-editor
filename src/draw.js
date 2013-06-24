@@ -4,6 +4,8 @@ define([
   'lodash'
 ], function(drawShape, state, _){
 
+  'use strict';
+
   return function(ctx){
     if(state.backImg){
       ctx.drawImage(state.backImg, 0, 0, this.canvas.width, state.backImg.height);

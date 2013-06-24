@@ -3,6 +3,8 @@ define([
   'frozen/utils'
 ], function(_, utils){
 
+  'use strict';
+
   var POINT_RADIUS = 4;
 
   return function(ctx, im, geometries){

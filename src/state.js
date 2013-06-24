@@ -4,6 +4,8 @@ define([
   'dojo/domReady!'
 ], function(StateManager, dom){
 
+  'use strict';
+
   var state = new StateManager({
     entities: [],
     joints: [],

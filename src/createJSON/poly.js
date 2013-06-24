@@ -4,6 +4,8 @@ define([
   'frozen/utils'
 ], function(state, convexHull, utils){
 
+  'use strict';
+
   return function(currentGeom){
     if(currentGeom && currentGeom.length > 2){
       var points = convexHull(currentGeom);

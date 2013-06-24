@@ -9,6 +9,8 @@ define([
   'dojo/request'
 ], function(state, createBodies, toggleRedo, _, on, dom, query, request){
 
+  'use strict';
+
   on(document, '#toolForm:change', function(e){
     state.geometries = [];
 

@@ -7,6 +7,8 @@ define([
   'frozen/utils'
 ], function(state, createBodies, createJSON, insideCanvas, dom, utils){
 
+  'use strict';
+
   var MAX_POLY_SIDES = 10;
   var POINT_RADIUS = 4;
 

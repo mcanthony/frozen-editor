@@ -2,6 +2,8 @@ define([
   '../utils/orderRectPts'
 ], function(orderRectPts){
 
+  'use strict';
+
   return function(ctx, im, geometries){
     var pts = orderRectPts([geometries[0], im.mouseAction.position]);
     ctx.strokeStyle = 'red';

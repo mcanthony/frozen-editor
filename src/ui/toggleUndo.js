@@ -3,6 +3,8 @@ define([
   'dojo/dom'
 ], function(state, dom){
 
+  'use strict';
+
   var undoBtn = dom.byId('undoBtn');
 
   return function(){

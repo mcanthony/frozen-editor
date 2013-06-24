@@ -5,6 +5,8 @@ define([
   'dcl'
 ], function(state, createBodies, DNDFileController, dcl){
 
+  'use strict';
+
   return dcl([DNDFileController], {
     id: 'canvas',
     drop: function(e){

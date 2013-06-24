@@ -3,6 +3,8 @@ define([
   'frozen/utils'
 ], function(state, utils){
 
+  'use strict';
+
   return function(currentGeom){
     if(currentGeom && currentGeom.length === 2){
       var dist = utils.distance(currentGeom[0], currentGeom[1]);

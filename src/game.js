@@ -7,6 +7,8 @@ define([
   './ui/events'
 ], function(state, handleInput, draw, BoxGame, CanvasDND){
 
+  'use strict';
+
   //setup a BoxGame instance
   var game = new BoxGame({
     canvasId: 'canvas',

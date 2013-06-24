@@ -3,6 +3,8 @@ define([
   'dojo/domReady!'
 ], function(dom){
 
+  'use strict';
+
   var gravityXField = dom.byId('gravityX');
   var gravityYField = dom.byId('gravityY');
 
