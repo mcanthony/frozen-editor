@@ -4,15 +4,16 @@
   "volo": {
     "baseUrl": "deps",
     "dependencies": {
+      "CodeMirror": "github:marijnh/CodeMirror/v3.02",
+      "bootstrap": "github:twitter/bootstrap/v2.3.0",
+      "iced-css": "github:iceddev/iced-css/master",
       "dojo": "github:dojo/dojo/1.8.3",
       "util": "github:dojo/util/1.8.3",
       "dcl": "github:uhop/dcl/1.0.2",
       "Box2d.min": "https://box2dweb.googlecode.com/svn/trunk/Box2d.min.js",
-      "frozen": "github:iceddev/frozen/0.2.0",
-      "lodash": "github:bestiejs/lodash/master",
-      "CodeMirror": "github:marijnh/CodeMirror/v3.02",
-      "bootstrap": "github:twitter/bootstrap/v2.3.0",
-      "iced-css": "github:iceddev/iced-css/master"
+      "lodash": "github:bestiejs/lodash/v1.3.1",
+      "hammer/hammer": "github:phated/hammer.js/frozen",
+      "frozen": "github:iceddev/frozen/0.4.0"
     }
   },
   "dojoBuild": "game.profile.js",
