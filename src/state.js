@@ -1,12 +1,11 @@
 define([
-  './StateManager',
   'dojo/dom',
   'dojo/domReady!'
-], function(StateManager, dom){
+], function(dom){
 
   'use strict';
 
-  var state = new StateManager({
+  var state = {
     entities: [],
     joints: [],
     undoObjs: [],
@@ -22,7 +21,7 @@ define([
       lineWrapping: true,
       mode: 'application/json'
     })
-  });
+  };
 
   return state;
 
