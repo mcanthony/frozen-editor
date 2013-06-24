@@ -1,14 +1,16 @@
 define([
   './state',
-  './Entities',
-  './Joints',
   './ui/getGravity',
   './ui/displayJSON',
   './ui/toggleUndo',
   'lodash',
   'dojo/dom-class',
+  'frozen/box2d/entities',
+  'frozen/box2d/joints',
   'frozen/box2d/Box'
-], function(state, Entities, Joints, getGravity, displayJSON, toggleUndo, _, domClass, Box){
+], function(state, getGravity, displayJSON, toggleUndo, _, domClass, entities, joints, Box){
+
+  'use strict';
 
   var DYNAMIC_COLOR = 'rgba(0,255,0,0.4)';
   var ZONE_COLOR = 'rgba(255,0,0,0.2)';
@@ -48,10 +50,10 @@ define([
       }
 
       if(!state.game.entities[obj.id]){
-        var ent = new Entities[obj.type](_.cloneDeep(obj));
-        state.game.entities[obj.id] = ent;
-        if(!obj.zone){
-          state.game.box.addBody(ent);
+        var Entity = entities[obj.type];
+        if(Entity){
+          var ent = new Entity(_.cloneDeep(obj));
+          state.game.addBody(ent);
         }
       } else {
         errors = true;
@@ -59,8 +61,11 @@ define([
     });
 
     _.forEach(state.joints, function(obj){
-      var joint = new Joints[obj.type](_.cloneDeep(obj));
-      state.game.box.addJoint(joint);
+      var Joint = joints[obj.type];
+      if(Joint){
+        var joint = new Joint(_.cloneDeep(obj));
+        state.game.addJoint(joint);
+      }
     });
 
     if(errors){
