@@ -23,7 +23,7 @@ define([
         y: -poly.y
       });
 
-      poly.staticBody = state.toolType === 'static';
+      poly.staticBody = state.createType === 'static';
       poly.sensor = state.sensor;
       poly.type = 'Polygon';
 

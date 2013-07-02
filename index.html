@@ -7,14 +7,14 @@
 
     <!-- Code Mirror Styles -->
     <link rel="stylesheet" type="text/css" href="deps/CodeMirror/lib/codemirror.css" />
-    <link rel="stylesheet" type="text/css" href="codemirror-frozen.css" />
+    <link rel="stylesheet" type="text/css" href="styles/codemirror-frozen.css" />
     <!-- Metro UI Styles -->
-    <link href="modern.css" type="text/css" rel="stylesheet" />
-    <link href="modern-responsive.css" type="text/css" rel="stylesheet" />
+    <link href="styles/modern.css" type="text/css" rel="stylesheet" />
+    <link href="styles/modern-responsive.css" type="text/css" rel="stylesheet" />
     <!-- IcedDev Styles -->
     <link href="deps/iced-css/iced.css" type="text/css" rel="stylesheet" />
     <!-- Custom Styles -->
-    <link href="gameStyles.css" type="text/css" rel="stylesheet" />
+    <link href="styles/game.css" type="text/css" rel="stylesheet" />
 
     <!-- Codr Mirror JS -->
     <script src="deps/CodeMirror/lib/codemirror.js"></script>
@@ -39,7 +39,7 @@
   <body>
     <canvas id="canvas" width="700" height="440" ></canvas>
 
-    <form id="toolForm" onsubmit="return false;">
+    <form id="createForm" onsubmit="return false;">
       <div class="grid">
         <div class="row">
           <div class="span8">
@@ -54,26 +54,37 @@
 
           <div class="span2">
             <label class="input-control radio">
-              <input type="radio" name="tool" value="rectangle" checked="checked">
+              <input type="radio" name="tool" value="create" checked="checked">
+              <span class="helper">Create</span>
+            </label>
+            <label class="input-control radio">
+              <input type="radio" name="tool" value="move">
+              <span class="helper">Move</span>
+            </label>
+          </div>
+
+          <div class="span2">
+            <label class="input-control radio">
+              <input type="radio" name="create" value="rectangle" checked="checked">
               <span class="helper">Rectangle</span>
             </label>
             <label class="input-control radio">
-              <input type="radio" name="tool" value="polygon">
+              <input type="radio" name="create" value="polygon">
               <span class="helper">Polygon</span>
             </label>
             <label class="input-control radio">
-              <input type="radio" name="tool" value="circle">
+              <input type="radio" name="create" value="circle">
               <span class="helper">Circle</span>
             </label>
           </div>
 
           <div class="span2">
             <label class="input-control radio">
-              <input type="radio" name="toolType" value="static" checked="checked">
+              <input type="radio" name="createType" value="static" checked="checked">
               <span class="helper">Static</span>
             </label>
             <label class="input-control radio">
-              <input type="radio" name="toolType" value="dynamic">
+              <input type="radio" name="createType" value="dynamic">
               <span class="helper">Dynamic</span>
             </label>
             <label class="input-control checkbox">
@@ -82,10 +93,10 @@
             </label>
           </div>
 
-          <div class="span3">
+          <div class="span2">
             <label class="input-control checkbox">
               <input type="checkbox" checked="checked" id="runSimulation">
-              <span class="helper">Run Simulation</span>
+              <span class="helper">Run Box2D</span>
             </label>
 
             <label class="input-control checkbox">
@@ -116,17 +127,19 @@
         </div>
 
         <div class="row">
-          <div id="duplicate-ids" class="span12 error hide">Duplicate IDs found, please double check your IDs</div>
-          <div id="saved-gist" class="span12"></div>
+          <button id="load">Load JSON</button>
+          <button id="save">Save JSON</button>
+          <label class="input-control checkbox">
+            <input type="checkbox" checked="checked" id="prettyPrint">
+            <span class="helper">Pretty Print</span>
+          </label>
+          <span id="msg"></span>
           <div class="input-control textarea span12">
-            <button id="load">Load JSON</button>
-            <button id="save">Save JSON</button>
             <textarea rows="10" id="output"></textarea>
           </div>
         </div>
       </div>
     </form>
-
 
   </body>
 </html>
