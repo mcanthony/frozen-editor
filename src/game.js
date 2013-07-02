@@ -1,14 +1,15 @@
 define([
   './state',
+  './initInput',
   './handleInput',
   './update',
   './draw',
+  './createBodies',
   'frozen/box2d/Box',
   'frozen/box2d/BoxGame',
   'frozen/box2d/listeners/Contact',
-  './ui/CanvasDND',
-  './ui/events'
-], function(state, handleInput, update, draw, Box, BoxGame, Contact, CanvasDND){
+  './ui/CanvasDND'
+], function(state, initInput, handleInput, update, draw, createBodies, Box, BoxGame, Contact, CanvasDND){
 
   'use strict';
 
@@ -17,19 +18,19 @@ define([
       beginContact: function(idA, idB, contact){
         console.log('begin contact', idA, idB, contact);
         if(contact.GetFixtureA().IsSensor() && contact.IsTouching()){
-          state.game.entities[idB].touching[idA] = true;
+          game.entities[idB].touching[idA] = true;
         }
         if(contact.GetFixtureB().IsSensor() && contact.IsTouching()){
-          state.game.entities[idA].touching[idB] = true;
+          game.entities[idA].touching[idB] = true;
         }
       },
       endContact: function(idA, idB, contact){
         console.log('end contact', idA, idB, contact);
         if(contact.GetFixtureA().IsSensor() && !contact.IsTouching()){
-          state.game.entities[idB].touching[idA] = false;
+          game.entities[idB].touching[idA] = false;
         }
         if(contact.GetFixtureB().IsSensor() && !contact.IsTouching()){
-          state.game.entities[idA].touching[idB] = false;
+          game.entities[idA].touching[idB] = false;
         }
       }
     })
@@ -38,17 +39,20 @@ define([
   //setup a BoxGame instance
   var game = new BoxGame({
     canvasId: 'canvas',
+    initInput: initInput,
     handleInput: handleInput,
     update: update,
     draw: draw,
-    box: box
+    box: box,
+    createBodies: createBodies
   });
 
   state.game = game;
 
-  var dnd = new CanvasDND();
+  var dnd = new CanvasDND({
+    game: game
+  });
 
-  //if you want to take a look at the game object in dev tools
   console.log(game);
 
   //launch the game!

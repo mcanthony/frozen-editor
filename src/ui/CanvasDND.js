@@ -9,7 +9,9 @@ define([
 
   return dcl([DNDFileController], {
     id: 'canvas',
+    game: null,
     drop: function(e){
+      var self = this;
       try {
         var files = e.dataTransfer.files;
 
@@ -29,16 +31,16 @@ define([
               var backImg = new Image();
 
               backImg.onload = function(){
-                state.game.stop();
+                self.game.stop();
 
                 state.backImg = backImg;
 
-                state.game.setHeight(backImg.height);
-                state.game.setWidth(backImg.width);
+                self.game.setHeight(backImg.height);
+                self.game.setWidth(backImg.width);
 
-                createBodies();
+                self.game.createBodies();
 
-                state.game.run();
+                self.game.run();
               };
 
               backImg.src = evt.target.result;
