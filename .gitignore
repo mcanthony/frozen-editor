@@ -1,4 +1,7 @@
 node_modules/
+deps/frozen/
+deps/lodash/
+deps/hammer/
 deps/dojo/
 deps/dcl/
 deps/put/
