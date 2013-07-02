@@ -162,7 +162,7 @@ define([
 
       if(!this.hammer){
         this.hammer = hammer(document, {
-          // prevent_default: false,
+          prevent_default: true,
           drag_max_touches: 0,
           // Hold uses setTimeout which is very bad for performance
           // TODO: Do we want to allow this to be overridden?
