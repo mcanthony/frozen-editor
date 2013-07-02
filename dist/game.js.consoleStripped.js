@@ -16318,6 +16318,13 @@ define([
      * @default
      */
     canvasPercentage: 0,
+    /**
+     * Request ID of the most recent animation frame
+     * @type {Number}
+     * @memberOf GameCore#
+     * @default
+     */
+    requestId: null,
 
     constructor: function(){
       /**
@@ -16368,6 +16375,8 @@ define([
      * @memberOf GameCore#
      */
     stop: function() {
+      window.cancelAnimationFrame(this.requestId);
+      this.requestId = null;
       this.isRunning = false;
     },
 
@@ -16499,12 +16508,12 @@ define([
 
       //need to keep the context defined here so the game loop has access to it
       this.loopRunner = _.bind(this.loopRunner, this);
-      window.requestAnimationFrame(this.loopRunner);
+      this.requestId = window.requestAnimationFrame(this.loopRunner);
     },
 
     loopRunner: function(){
       this.gameLoop();
-      window.requestAnimationFrame(this.loopRunner);
+      this.requestId = window.requestAnimationFrame(this.loopRunner);
     },
 
     /**
@@ -16815,7 +16824,7 @@ define([
      * Instance of Hammer.js - You can pass in a Hammer() constructor with options to customize your Hammer instance
      * @type {Object}
      * @memberOf InputManager#
-     * @default Hammer instance, bound to document, with prevent_default: true, drag_max_touches: 0, and hold: false
+     * @default Hammer instance, bound to document, with drag_max_touches: 0 and hold: false
      */
     hammer: null,
 
@@ -16850,7 +16859,6 @@ define([
 
       if(!this.hammer){
         this.hammer = hammer(document, {
-          prevent_default: true,
           drag_max_touches: 0,
           // Hold uses setTimeout which is very bad for performance
           // TODO: Do we want to allow this to be overridden?
@@ -19613,16 +19621,16 @@ define([
   var audioContext = null;
   if(has('WebAudio')){
     audioContext = new window.AudioContext();
-  }
 
-  if(has('shittySound')){
-    // Similar strategy to https://github.com/CreateJS/SoundJS
-    on.once(document, 'touchstart', function(){
-      var source = audioContext.createBufferSource();
-      source.buffer = audioContext.createBuffer(1, 1, 22050);
-      source.connect(audioContext.destination);
-      source.noteOn(0);
-    });
+    if(has('shittySound')){
+      // Similar strategy to https://github.com/CreateJS/SoundJS
+      on.once(document, 'touchstart', function(){
+        var source = audioContext.createBufferSource();
+        source.buffer = audioContext.createBuffer(1, 1, 22050);
+        source.connect(audioContext.destination);
+        source.noteOn(0);
+      });
+    }
   }
 
   return dcl(Sound, {
