@@ -13,7 +13,7 @@
       "Box2d.min": "https://box2dweb.googlecode.com/svn/trunk/Box2d.min.js",
       "lodash": "github:bestiejs/lodash/v1.3.1",
       "hammer/hammer": "github:phated/hammer.js/frozen",
-      "frozen": "github:iceddev/frozen/0.4.0",
+      "frozen": "github:iceddev/frozen/0.4.1",
       "put": "github:kriszyp/put-selector/v0.3.4"
     }
   },
