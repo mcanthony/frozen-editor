@@ -1,6 +1,7 @@
 node_modules/
 deps/dojo/
 deps/dcl/
+deps/put/
 deps/util/
 deps/bootstrap/
 libs/

@@ -6,6 +6,7 @@ var dojoConfig = {
     { name: 'frozen', location: 'deps/frozen/src', main: 'GameCore' },
     { name: 'lodash', location: 'deps/lodash/dist', main: 'lodash' },
     { name: 'hammer', location: 'deps/hammer', main: 'hammer' },
+    { name: 'put', location: 'deps/put', main: 'put' },
     { name: 'game', location: 'src', main: 'game' }
   ],
   deps: ['game'],
