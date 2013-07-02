@@ -30,21 +30,6 @@ a {
   background-color: #e4e4e4;
 }
 
-#load {
-  position: absolute;
-  z-index: 2;
-  right: 15px;
-  margin: 0;
-}
-
-#save {
-  position: absolute;
-  z-index: 2;
-  top: 35px;
-  right: 15px;
-  margin: 0;
-}
-
 #saved-gist {
   font-weight: 800;
 }
