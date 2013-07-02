@@ -10,8 +10,9 @@ define([
     joints: [],
     undoObjs: [],
     geometries: [],
-    tool: 'rectangle',
-    toolType: 'static',
+    tool: 'create',
+    create: 'rectangle',
+    createType: 'static',
     sensor: false,
     showStatic: true,
     backImg: null,
@@ -19,7 +20,7 @@ define([
     codeMirror: CodeMirror.fromTextArea(dom.byId('output'), {
       theme: 'frozen',
       matchBrackets: true,
-      lineWrapping: true,
+      // lineWrapping: true,
       mode: 'application/json'
     })
   };

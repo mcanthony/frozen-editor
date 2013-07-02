@@ -13,7 +13,7 @@ define([
         y: currentGeom[0].y,
         radius: dist
       };
-      circ.staticBody = state.toolType === 'static';
+      circ.staticBody = state.createType === 'static';
       circ.sensor = state.sensor;
       circ.type = 'Circle';
 
