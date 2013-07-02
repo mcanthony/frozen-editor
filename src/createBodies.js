@@ -4,11 +4,11 @@ define([
   './ui/displayJSON',
   './ui/toggleUndo',
   'lodash',
-  'dojo/dom-class',
+  'put',
   'frozen/box2d/entities',
   'frozen/box2d/joints',
   'frozen/box2d/Box'
-], function(state, getGravity, displayJSON, toggleUndo, _, domClass, entities, joints, Box){
+], function(state, getGravity, displayJSON, toggleUndo, _, put, entities, joints, Box){
 
   'use strict';
 
@@ -17,13 +17,20 @@ define([
 
   var geomId = 0;
 
+  var msgEl;
+
   return function(){
+    if(!msgEl){
+      msgEl = document.getElementById('msg');
+    }
+
+    var self = this;
     var errors = false;
     var gravity = getGravity();
 
-    state.game.box.setGravity(gravity);
-    state.game.removeBodies(_.toArray(state.game.entities));
-    state.game.removeJoints(_.toArray(state.game.joints));
+    self.box.setGravity(gravity);
+    self.removeBodies(_.toArray(self.entities));
+    self.removeJoints(_.toArray(self.joints));
 
     var max = _(state.entities).map(function(obj){
       var id = parseInt(obj.id, 10);
@@ -46,13 +53,13 @@ define([
         geomId++;
       }
 
-      if(!state.game.entities[obj.id]){
+      if(!self.entities[obj.id]){
         var Entity = entities[obj.type];
         if(Entity){
           var ent = new Entity(_.cloneDeep(obj));
           ent.originalFill = ent.fillStyle;
           ent.touching = {};
-          state.game.addBody(ent);
+          self.addBody(ent);
         }
       } else {
         errors = true;
@@ -63,17 +70,19 @@ define([
       var Joint = joints[obj.type];
       if(Joint){
         var joint = new Joint(_.cloneDeep(obj));
-        state.game.addJoint(joint);
+        self.addJoint(joint);
       }
     });
 
     if(errors){
-      domClass.remove('duplicate-ids', 'hide');
+      put(msgEl, '.error', 'Duplicate IDs found, please double check your IDs');
     } else {
-      domClass.add('duplicate-ids', 'hide');
+      put(msgEl, '!error', {
+        textContent: ''
+      });
     }
 
-    displayJSON(state.entities);
+    displayJSON();
     toggleUndo();
   };
 
