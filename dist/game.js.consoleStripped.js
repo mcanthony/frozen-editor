@@ -2028,9 +2028,9 @@ define([
     joints: [],
     undoObjs: [],
     geometries: [],
-    tool: 'create',
-    create: 'rectangle',
-    createType: 'static',
+    mode: 'create',
+    tool: 'rectangle',
+    options: 'static',
     sensor: false,
     showStatic: true,
     backImg: null,
@@ -3828,10 +3828,11 @@ define([
   './ui/loadJSON',
   './ui/saveJSON',
   './ui/displayJSON',
+  'put',
   'lodash',
   'dojo/on',
   'dojo/query'
-], function(state, toggleRedo, loadJSON, saveJSON, displayJSON, _, on, query){
+], function(state, toggleRedo, loadJSON, saveJSON, displayJSON, put, _, on, query){
 
   'use strict';
 
@@ -3841,19 +3842,27 @@ define([
     on(document, '#createForm:change', function(e){
       state.geometries = [];
 
-      if(e.target.name === 'tool'){
-        state.tool = e.target.value;
-        0 && console.log('tool', state.tool);
+      if(e.target.name === 'mode'){
+        state.mode = e.target.value;
+        0 && console.log('mode', state.mode);
+        var toolEls = document.querySelectorAll('.tools');
+        _.forEach(toolEls, function(toolEl){
+          if(toolEl.id === state.mode){
+            put(toolEl, '!hide');
+          } else {
+            put(toolEl, '.hide');
+          }
+        });
       }
 
       if(e.target.name === 'create'){
-        state.create = e.target.value;
-        0 && console.log('create', state.create);
+        state.tool = e.target.value;
+        0 && console.log('create', state.tool);
       }
 
-      if(e.target.name === 'createType'){
-        state.createType = e.target.value;
-        0 && console.log('createType', state.createType);
+      if(e.target.name === 'createOption'){
+        state.options = e.target.value;
+        0 && console.log('createOption', state.options);
       }
     });
 
@@ -13091,8 +13100,8 @@ define([
 
   var mp;
 
-  var movingShape;
-  var movingEntity;
+  var selectedShape;
+  var selectedEntity;
 
   return function(im){
 
@@ -13105,63 +13114,65 @@ define([
 
     // mouse pressed
     if(im.mouseAction.isPressed() && im.insideCanvas(im.mouseAction.startPosition) && !mp){
-      if(state.tool === 'move'){
-        if(!movingShape){
-          movingShape = _.last(_.where(state.entities, function(obj){
-            return self.entities[obj.id].pointInShape({
-              x: im.mouseAction.startPosition.x / self.box.scale,
-              y: im.mouseAction.startPosition.y / self.box.scale
-            });
-          }));
-          0 && console.log(movingShape);
-          if(movingShape){
-            movingEntity = this.entities[movingShape.id];
-          }
+      if(state.mode === 'move' && !selectedShape){
+        selectedShape = _.last(_.where(state.entities, function(obj){
+          return self.entities[obj.id].pointInShape({
+            x: im.mouseAction.startPosition.x / self.box.scale,
+            y: im.mouseAction.startPosition.y / self.box.scale
+          });
+        }));
+        0 && console.log(selectedShape);
+        if(selectedShape){
+          selectedEntity = this.entities[selectedShape.id];
         }
-        if(movingShape){
-          movingShape.x = im.mouseAction.position.x;
-          movingShape.y = im.mouseAction.position.y;
-          if(movingShape.staticBody){
-            movingEntity.x = movingShape.x / this.box.scale;
-            movingEntity.y = movingShape.y / this.box.scale;
-            this.box.removeBody(movingEntity.id);
-            this.box.addBody(movingEntity);
-          } else {
-            this.box.setPosition(movingEntity.id, movingShape.x / this.box.scale, movingShape.y / this.box.scale);
-            this.box.setLinearVelocity(movingEntity.id, 0, 0);
-            this.box.setAngularVelocity(movingEntity.id, 0);
-          }
-          displayJSON();
+      }
+      if(state.mode === 'move' && selectedShape){
+        selectedShape.x = im.mouseAction.position.x;
+        selectedShape.y = im.mouseAction.position.y;
+        if(selectedShape.staticBody){
+          selectedEntity.x = selectedShape.x / this.box.scale;
+          selectedEntity.y = selectedShape.y / this.box.scale;
+          this.box.removeBody(selectedEntity.id);
+          this.box.addBody(selectedEntity);
+        } else {
+          this.box.setPosition(selectedEntity.id, selectedShape.x / this.box.scale, selectedShape.y / this.box.scale);
+          this.box.setLinearVelocity(selectedEntity.id, 0, 0);
+          this.box.setAngularVelocity(selectedEntity.id, 0);
         }
-      } else {
+        displayJSON();
+      } else if(state.mode === 'create'){
         mp = im.mouseAction.startPosition;
-        0 && console.log('start ' + state.create, mp);
+        0 && console.log('start ' + state.tool, mp);
         state.geometries.push(mp);
       }
     }
 
     //mouse released
     if(!im.mouseAction.isPressed() && im.mouseAction.endPosition){
-      if(state.tool === 'move' && movingEntity){
-        this.box.removeBody(movingEntity.id);
-        this.box.addBody(movingEntity);
-        movingShape = movingEntity = null;
+      if(state.mode === 'move' && selectedEntity){
+        this.box.removeBody(selectedEntity.id);
+        this.box.addBody(selectedEntity);
         displayJSON();
       } else if(mp){
         mp = im.mouseAction.endPosition;
 
-        if(state.create === 'polygon' && state.geometries.length !== MAX_POLY_SIDES && (state.geometries.length <= 1 || utils.distance(state.geometries[0], mp) > POINT_RADIUS)){
+        if(state.tool === 'polygon' && state.geometries.length !== MAX_POLY_SIDES && (state.geometries.length <= 1 || utils.distance(state.geometries[0], mp) > POINT_RADIUS)){
           mp = null;
           return;
         }
 
         state.geometries.push(mp);
-        state.entities.push(createJSON[state.create](state.geometries));
+        state.entities.push(createJSON[state.tool](state.geometries));
         this.createBodies();
         state.geometries = [];
 
-        im.mouseAction.endPosition = null;
         mp = null;
+      }
+
+      im.mouseAction.endPosition = null;
+
+      if(selectedEntity){
+        selectedShape = selectedEntity = null;
       }
     }
   };
@@ -13211,7 +13222,7 @@ define([
         y: -poly.y
       });
 
-      poly.staticBody = state.createType === 'static';
+      poly.staticBody = state.options === 'static';
       poly.sensor = state.sensor;
       poly.type = 'Polygon';
 
@@ -13704,7 +13715,7 @@ define([
         y: currentGeom[0].y,
         radius: dist
       };
-      circ.staticBody = state.createType === 'static';
+      circ.staticBody = state.options === 'static';
       circ.sensor = state.sensor;
       circ.type = 'Circle';
 
@@ -13732,7 +13743,7 @@ define([
         halfWidth: Math.abs((pts[1].x - pts[0].x) / 2) || 0.5,
         halfHeight: Math.abs((pts[1].y - pts[0].y) / 2) || 0.5
       };
-      rect.staticBody = state.createType === 'static';
+      rect.staticBody = state.options === 'static';
       rect.sensor = state.sensor;
       rect.type = 'Rectangle';
 
@@ -13819,7 +13830,7 @@ define([
       return;
     }
 
-    drawShape[state.create](ctx, this.inputManager, state.geometries);
+    drawShape[state.tool](ctx, this.inputManager, state.geometries);
   };
 
 });
