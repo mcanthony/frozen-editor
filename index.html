@@ -51,46 +51,12 @@
         </div>
 
         <div class="row">
-
           <div class="span2">
-            <label class="input-control radio">
-              <input type="radio" name="tool" value="create" checked="checked">
-              <span class="helper">Create</span>
-            </label>
-            <label class="input-control radio">
-              <input type="radio" name="tool" value="move">
-              <span class="helper">Move</span>
-            </label>
+            <button id="undoBtn" disabled="disabled">undo</button>
           </div>
 
           <div class="span2">
-            <label class="input-control radio">
-              <input type="radio" name="create" value="rectangle" checked="checked">
-              <span class="helper">Rectangle</span>
-            </label>
-            <label class="input-control radio">
-              <input type="radio" name="create" value="polygon">
-              <span class="helper">Polygon</span>
-            </label>
-            <label class="input-control radio">
-              <input type="radio" name="create" value="circle">
-              <span class="helper">Circle</span>
-            </label>
-          </div>
-
-          <div class="span2">
-            <label class="input-control radio">
-              <input type="radio" name="createType" value="static" checked="checked">
-              <span class="helper">Static</span>
-            </label>
-            <label class="input-control radio">
-              <input type="radio" name="createType" value="dynamic">
-              <span class="helper">Dynamic</span>
-            </label>
-            <label class="input-control checkbox">
-              <input type="checkbox" id="sensor">
-              <span class="helper">Sensor</span>
-            </label>
+            <button id="redoBtn" disabled="disabled">redo</button>
           </div>
 
           <div class="span2">
@@ -98,15 +64,62 @@
               <input type="checkbox" checked="checked" id="runSimulation">
               <span class="helper">Run Box2D</span>
             </label>
+          </div>
 
+          <div class="span2">
             <label class="input-control checkbox">
               <input type="checkbox" checked="checked" id="showStatic">
               <span class="helper">Show Static</span>
             </label>
           </div>
+        </div>
+
+        <div class="row">
 
           <div class="span2">
-            <div class="row">
+            <label class="input-control radio">
+              <input type="radio" name="mode" value="create" checked="checked">
+              <span class="helper">Create</span>
+            </label>
+            <label class="input-control radio">
+              <input type="radio" name="mode" value="move">
+              <span class="helper">Move</span>
+            </label>
+          </div>
+
+          <div id="create" class="span4 tools">
+            <div class="span2">
+              <label class="input-control radio">
+                <input type="radio" name="create" value="rectangle" checked="checked">
+                <span class="helper">Rectangle</span>
+              </label>
+              <label class="input-control radio">
+                <input type="radio" name="create" value="polygon">
+                <span class="helper">Polygon</span>
+              </label>
+              <label class="input-control radio">
+                <input type="radio" name="create" value="circle">
+                <span class="helper">Circle</span>
+              </label>
+            </div>
+            <div class="span2">
+              <label class="input-control radio">
+                <input type="radio" name="createOption" value="static" checked="checked">
+                <span class="helper">Static</span>
+              </label>
+              <label class="input-control radio">
+                <input type="radio" name="createOption" value="dynamic">
+                <span class="helper">Dynamic</span>
+              </label>
+              <label class="input-control checkbox">
+                <input type="checkbox" id="sensor">
+                <span class="helper">Sensor</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="span2 place-right">
+            <div class="span2">
               <div class="input-control text span2">
                 Gravity X:
                 <input type="number" value="0" step="0.1" id="gravityX" class="gravity">
@@ -116,12 +129,6 @@
                 <input type="number" value="9.8" step="0.1" id="gravityY" class="gravity">
               </div>
             </div>
-          </div>
-
-          <div class="span2">
-            <button id="undoBtn" disabled="disabled">undo</button>
-
-            <button id="redoBtn" disabled="disabled">redo</button>
           </div>
 
         </div>

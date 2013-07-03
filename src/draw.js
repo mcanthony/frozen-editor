@@ -23,7 +23,7 @@ define([
       return;
     }
 
-    drawShape[state.create](ctx, this.inputManager, state.geometries);
+    drawShape[state.tool](ctx, this.inputManager, state.geometries);
   };
 
 });

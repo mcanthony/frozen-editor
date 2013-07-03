@@ -4,10 +4,11 @@ define([
   './ui/loadJSON',
   './ui/saveJSON',
   './ui/displayJSON',
+  'put',
   'lodash',
   'dojo/on',
   'dojo/query'
-], function(state, toggleRedo, loadJSON, saveJSON, displayJSON, _, on, query){
+], function(state, toggleRedo, loadJSON, saveJSON, displayJSON, put, _, on, query){
 
   'use strict';
 
@@ -17,19 +18,27 @@ define([
     on(document, '#createForm:change', function(e){
       state.geometries = [];
 
-      if(e.target.name === 'tool'){
-        state.tool = e.target.value;
-        console.log('tool', state.tool);
+      if(e.target.name === 'mode'){
+        state.mode = e.target.value;
+        console.log('mode', state.mode);
+        var toolEls = document.querySelectorAll('.tools');
+        _.forEach(toolEls, function(toolEl){
+          if(toolEl.id === state.mode){
+            put(toolEl, '!hide');
+          } else {
+            put(toolEl, '.hide');
+          }
+        });
       }
 
       if(e.target.name === 'create'){
-        state.create = e.target.value;
-        console.log('create', state.create);
+        state.tool = e.target.value;
+        console.log('create', state.tool);
       }
 
-      if(e.target.name === 'createType'){
-        state.createType = e.target.value;
-        console.log('createType', state.createType);
+      if(e.target.name === 'createOption'){
+        state.options = e.target.value;
+        console.log('createOption', state.options);
       }
     });
 
