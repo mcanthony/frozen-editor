@@ -16,8 +16,8 @@ define([
 
   var mp;
 
-  var movingShape;
-  var movingEntity;
+  var selectedShape;
+  var selectedEntity;
 
   return function(im){
 
@@ -30,63 +30,65 @@ define([
 
     // mouse pressed
     if(im.mouseAction.isPressed() && im.insideCanvas(im.mouseAction.startPosition) && !mp){
-      if(state.tool === 'move'){
-        if(!movingShape){
-          movingShape = _.last(_.where(state.entities, function(obj){
-            return self.entities[obj.id].pointInShape({
-              x: im.mouseAction.startPosition.x / self.box.scale,
-              y: im.mouseAction.startPosition.y / self.box.scale
-            });
-          }));
-          console.log(movingShape);
-          if(movingShape){
-            movingEntity = this.entities[movingShape.id];
-          }
+      if(state.mode === 'move' && !selectedShape){
+        selectedShape = _.last(_.where(state.entities, function(obj){
+          return self.entities[obj.id].pointInShape({
+            x: im.mouseAction.startPosition.x / self.box.scale,
+            y: im.mouseAction.startPosition.y / self.box.scale
+          });
+        }));
+        console.log(selectedShape);
+        if(selectedShape){
+          selectedEntity = this.entities[selectedShape.id];
         }
-        if(movingShape){
-          movingShape.x = im.mouseAction.position.x;
-          movingShape.y = im.mouseAction.position.y;
-          if(movingShape.staticBody){
-            movingEntity.x = movingShape.x / this.box.scale;
-            movingEntity.y = movingShape.y / this.box.scale;
-            this.box.removeBody(movingEntity.id);
-            this.box.addBody(movingEntity);
-          } else {
-            this.box.setPosition(movingEntity.id, movingShape.x / this.box.scale, movingShape.y / this.box.scale);
-            this.box.setLinearVelocity(movingEntity.id, 0, 0);
-            this.box.setAngularVelocity(movingEntity.id, 0);
-          }
-          displayJSON();
+      }
+      if(state.mode === 'move' && selectedShape){
+        selectedShape.x = im.mouseAction.position.x;
+        selectedShape.y = im.mouseAction.position.y;
+        if(selectedShape.staticBody){
+          selectedEntity.x = selectedShape.x / this.box.scale;
+          selectedEntity.y = selectedShape.y / this.box.scale;
+          this.box.removeBody(selectedEntity.id);
+          this.box.addBody(selectedEntity);
+        } else {
+          this.box.setPosition(selectedEntity.id, selectedShape.x / this.box.scale, selectedShape.y / this.box.scale);
+          this.box.setLinearVelocity(selectedEntity.id, 0, 0);
+          this.box.setAngularVelocity(selectedEntity.id, 0);
         }
-      } else {
+        displayJSON();
+      } else if(state.mode === 'create'){
         mp = im.mouseAction.startPosition;
-        console.log('start ' + state.create, mp);
+        console.log('start ' + state.tool, mp);
         state.geometries.push(mp);
       }
     }
 
     //mouse released
     if(!im.mouseAction.isPressed() && im.mouseAction.endPosition){
-      if(state.tool === 'move' && movingEntity){
-        this.box.removeBody(movingEntity.id);
-        this.box.addBody(movingEntity);
-        movingShape = movingEntity = null;
+      if(state.mode === 'move' && selectedEntity){
+        this.box.removeBody(selectedEntity.id);
+        this.box.addBody(selectedEntity);
         displayJSON();
       } else if(mp){
         mp = im.mouseAction.endPosition;
 
-        if(state.create === 'polygon' && state.geometries.length !== MAX_POLY_SIDES && (state.geometries.length <= 1 || utils.distance(state.geometries[0], mp) > POINT_RADIUS)){
+        if(state.tool === 'polygon' && state.geometries.length !== MAX_POLY_SIDES && (state.geometries.length <= 1 || utils.distance(state.geometries[0], mp) > POINT_RADIUS)){
           mp = null;
           return;
         }
 
         state.geometries.push(mp);
-        state.entities.push(createJSON[state.create](state.geometries));
+        state.entities.push(createJSON[state.tool](state.geometries));
         this.createBodies();
         state.geometries = [];
 
-        im.mouseAction.endPosition = null;
         mp = null;
+      }
+
+      im.mouseAction.endPosition = null;
+
+      if(selectedEntity){
+        selectedShape = selectedEntity = null;
       }
     }
   };
