@@ -3960,10 +3960,10 @@ define([
       if(data.joints){
         state.joints = data.joints;
       }
-      if(data.backImg){
-        state.backImg = new Image();
-        state.backImg.src = data.backImg;
-      }
+      // if(data.backImg){
+      //   state.backImg = new Image();
+      //   state.backImg.src = data.backImg;
+      // }
       if(data.canvas.height){
         state.height = data.canvas.height;
       }
@@ -4398,8 +4398,8 @@ define([
       canvas: {
         height: state.game ? state.game.height : null,
         width: state.game ? state.game.width : null
-      },
-      backImg: state.backImg ? state.backImg.src : null
+      }
+      // backImg: state.backImg ? state.backImg.src : null
     }, null, whitespace));
 
   };

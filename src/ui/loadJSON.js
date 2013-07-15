@@ -14,10 +14,10 @@ define([
       if(data.joints){
         state.joints = data.joints;
       }
-      if(data.backImg){
-        state.backImg = new Image();
-        state.backImg.src = data.backImg;
-      }
+      // if(data.backImg){
+      //   state.backImg = new Image();
+      //   state.backImg.src = data.backImg;
+      // }
       if(data.canvas.height){
         state.height = data.canvas.height;
       }

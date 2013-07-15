@@ -15,8 +15,8 @@ define([
       canvas: {
         height: state.game ? state.game.height : null,
         width: state.game ? state.game.width : null
-      },
-      backImg: state.backImg ? state.backImg.src : null
+      }
+      // backImg: state.backImg ? state.backImg.src : null
     }, null, whitespace));
 
   };
